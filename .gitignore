@@ -1,0 +1,15 @@
+dist/
+node_modules/
+coverage/
+.env
+.env.local
+.env.production
+*.log
+test-output.json
+check-db.ts
+debug-banner-db.ts
+e2e_debug.log
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini
