@@ -38,7 +38,7 @@ export function createAuthInstance(prismaClient: PrismaClient) {
                 lastName: { type: 'string', required: true, input: true },
                 phone: { type: 'string', required: false, input: true },
                 avatar: { type: 'string', required: false },
-                globalRole: { type: 'string', required: false, defaultValue: 'USER', input: true },
+                globalRole: { type: 'string', required: false, defaultValue: 'USER', input: false },
             },
         },
 
@@ -53,11 +53,32 @@ export function createAuthInstance(prismaClient: PrismaClient) {
             max: 100,
         },
 
-        trustedOrigins: [
-            process.env.FRONTEND_URL || 'http://localhost:3000',
-            'http://localhost:3001',
-            'http://localhost:3002',
-        ],
+        trustedOrigins: async (request) => {
+            const staticOrigins = [
+                process.env.FRONTEND_URL || 'http://localhost:3000',
+                'http://localhost:3001',
+                'http://localhost:3002',
+            ];
+
+            // Dynamically add custom domains from active stores
+            try {
+                const stores = await prismaClient.store.findMany({
+                    where: { customDomain: { not: null } },
+                    select: { customDomain: true },
+                });
+
+                const customDomainOrigins = stores
+                    .filter((s) => s.customDomain)
+                    .flatMap((s) => [
+                        `https://${s.customDomain}`,
+                        `http://${s.customDomain}`,
+                    ]);
+
+                return [...staticOrigins, ...customDomainOrigins];
+            } catch {
+                return staticOrigins;
+            }
+        },
     });
 }
 

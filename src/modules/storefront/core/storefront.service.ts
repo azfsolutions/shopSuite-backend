@@ -18,6 +18,28 @@ export class StorefrontService {
         return store;
     }
 
+    async resolveByDomain(domain: string) {
+        // Try custom domain first
+        let store = await this.prisma.store.findUnique({
+            where: { customDomain: domain },
+            select: { id: true, slug: true, name: true },
+        });
+
+        // Then try subdomain
+        if (!store) {
+            store = await this.prisma.store.findUnique({
+                where: { subdomain: domain },
+                select: { id: true, slug: true, name: true },
+            });
+        }
+
+        if (!store) {
+            throw new NotFoundException('No store found for this domain');
+        }
+
+        return store;
+    }
+
     async getCategories(storeId: string) {
         return this.prisma.category.findMany({
             where: { storeId, isActive: true, deletedAt: null, parentId: null },

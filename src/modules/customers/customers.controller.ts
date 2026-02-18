@@ -1,11 +1,13 @@
 import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CustomersService } from './customers.service';
-import { AuthGuard, StoreAccessGuard } from '../../core/guards';
+import { AuthGuard, StoreAccessGuard, GlobalRoleGuard } from '../../core/guards';
+import { RequireGlobalRole } from '../../core/decorators';
 
 @ApiTags('customers')
 @Controller('stores/:storeId/customers')
-@UseGuards(AuthGuard, StoreAccessGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @ApiBearerAuth()
 export class CustomersController {
     constructor(private readonly customersService: CustomersService) { }

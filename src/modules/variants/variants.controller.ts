@@ -10,7 +10,8 @@ import {
     UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { AuthGuard } from '../../core/guards';
+import { AuthGuard, GlobalRoleGuard } from '../../core/guards';
+import { RequireGlobalRole } from '../../core/decorators';
 import { VariantsService } from './variants.service';
 import {
     CreateOptionDto,
@@ -24,7 +25,8 @@ import {
 
 @ApiTags('Product Variants')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('products/:productId')
 export class VariantsController {
     constructor(private readonly variantsService: VariantsService) { }

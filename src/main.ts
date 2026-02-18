@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './core/filters/global-exception.filter';
 import { PrismaExceptionFilter } from './core/filters/prisma-exception.filter';
+import { PrismaService } from './database/prisma.service';
 
 async function bootstrap() {
     const app = await NestFactory.create(AppModule);
@@ -71,8 +72,12 @@ async function bootstrap() {
             process.env.FRONTEND_URL,
         ].filter(Boolean);
 
+    // Cache for custom domain CORS validation
+    const customDomainCache = new Map<string, boolean>();
+    const prisma = app.get(PrismaService);
+
     app.enableCors({
-        origin: (origin, callback) => {
+        origin: async (origin, callback) => {
             // Permitir requests sin origin (mobile apps, Postman, etc.)
             if (!origin) {
                 callback(null, true);
@@ -81,7 +86,40 @@ async function bootstrap() {
 
             if (allowedOrigins.includes(origin)) {
                 callback(null, true);
-            } else if (!isProduction) {
+                return;
+            }
+
+            // Check if origin is a custom domain for any store
+            try {
+                const originHost = new URL(origin).hostname;
+
+                // Check cache
+                if (customDomainCache.has(originHost)) {
+                    callback(null, customDomainCache.get(originHost)!);
+                    return;
+                }
+
+                // Query database for custom domain
+                const store = await prisma.store.findUnique({
+                    where: { customDomain: originHost },
+                    select: { id: true },
+                });
+
+                const isAllowed = !!store;
+                customDomainCache.set(originHost, isAllowed);
+
+                // Clear cache entry after 5 minutes
+                setTimeout(() => customDomainCache.delete(originHost), 5 * 60 * 1000);
+
+                if (isAllowed) {
+                    callback(null, true);
+                    return;
+                }
+            } catch {
+                // If URL parsing fails or DB query fails, fall through
+            }
+
+            if (!isProduction) {
                 // En desarrollo, loggear pero permitir
                 logger.warn(`CORS: Permitiendo origen no listado en desarrollo: ${origin}`);
                 callback(null, true);

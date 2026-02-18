@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { StorefrontController } from './core/storefront.controller';
+import { DomainResolverController } from './core/domain-resolver.controller';
 import { StorefrontService } from './core/storefront.service';
 
 // Features
@@ -24,6 +25,7 @@ import { ShippingModule } from '../shipping/shipping.module';
 @Module({
     imports: [CouponsModule, ShippingModule],
     controllers: [
+        DomainResolverController,
         StorefrontController,
         AdminFeaturedProductsController,
         BannersController,

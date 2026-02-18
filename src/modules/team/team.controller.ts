@@ -2,14 +2,15 @@ import { Controller, Get, Post, Patch, Delete, Param, Body, UseGuards, Logger } 
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
 import { TeamService } from './team.service';
 import { InviteMemberDto, UpdateMemberRoleDto, RespondInvitationDto } from './dto/team.dto';
-import { AuthGuard } from '../../core/guards';
+import { AuthGuard, GlobalRoleGuard } from '../../core/guards';
 import { PermissionsGuard } from '../../core/guards/permissions.guard';
-import { CurrentStore, CurrentUser, RequirePermission } from '../../core/decorators';
+import { CurrentStore, CurrentUser, RequirePermission, RequireGlobalRole } from '../../core/decorators';
 import { PERMISSIONS, ROLE_PERMISSIONS, PERMISSION_LABELS } from '../../config/permissions.config';
 
 @ApiTags('team')
 @Controller('team')
-@UseGuards(AuthGuard, PermissionsGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, PermissionsGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @ApiBearerAuth()
 export class TeamController {
     private readonly logger = new Logger(TeamController.name);

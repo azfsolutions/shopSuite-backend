@@ -1,11 +1,13 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { CategoriesService } from './categories.service';
-import { AuthGuard, StoreAccessGuard } from '../../core/guards';
+import { AuthGuard, StoreAccessGuard, GlobalRoleGuard } from '../../core/guards';
+import { RequireGlobalRole } from '../../core/decorators';
 
 @ApiTags('categories')
 @Controller('stores/:storeId/categories')
-@UseGuards(AuthGuard, StoreAccessGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @ApiBearerAuth()
 export class CategoriesController {
     constructor(private readonly categoriesService: CategoriesService) { }

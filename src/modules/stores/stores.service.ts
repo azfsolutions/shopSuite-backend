@@ -2,10 +2,11 @@ import {
     Injectable,
     ConflictException,
     NotFoundException,
+    BadRequestException,
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
+import { CreateStoreDto, UpdateStoreDto, SetCustomDomainDto } from './dto/store.dto';
 
 @Injectable()
 export class StoresService {
@@ -145,6 +146,55 @@ export class StoresService {
         return this.prisma.store.update({
             where: { id: storeId },
             data: { deletedAt: new Date() },
+        });
+    }
+
+    async setCustomDomain(storeId: string, dto: SetCustomDomainDto) {
+        await this.findById(storeId);
+
+        // Check reserved/platform domains
+        const platformDomains = [
+            process.env.FRONTEND_URL?.replace(/^https?:\/\//, '') || 'localhost',
+        ];
+        if (platformDomains.some((d) => dto.customDomain.endsWith(d))) {
+            throw new BadRequestException('Cannot use a platform domain');
+        }
+
+        try {
+            const updated = await this.prisma.store.update({
+                where: { id: storeId },
+                data: { customDomain: dto.customDomain },
+                select: {
+                    id: true,
+                    customDomain: true,
+                    slug: true,
+                },
+            });
+
+            return {
+                ...updated,
+                dns: {
+                    type: 'CNAME',
+                    name: dto.customDomain,
+                    value: process.env.FRONTEND_URL?.replace(/^https?:\/\//, '') || 'localhost:3002',
+                    instructions: `Add a CNAME record pointing ${dto.customDomain} to ${process.env.FRONTEND_URL?.replace(/^https?:\/\//, '') || 'localhost:3002'}`,
+                },
+            };
+        } catch (error: any) {
+            if (error.code === 'P2002') {
+                throw new ConflictException('This domain is already in use by another store');
+            }
+            throw error;
+        }
+    }
+
+    async removeCustomDomain(storeId: string) {
+        await this.findById(storeId);
+
+        return this.prisma.store.update({
+            where: { id: storeId },
+            data: { customDomain: null },
+            select: { id: true, customDomain: true, slug: true },
         });
     }
 

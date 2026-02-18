@@ -2,13 +2,14 @@ import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AnalyticsService } from './analytics.service';
 import { AnalyticsQueryDto } from './dto/analytics-query.dto';
-import { AuthGuard } from '../../core/guards';
+import { AuthGuard, GlobalRoleGuard } from '../../core/guards';
 import { StoreAccessGuard } from '../../core/guards/store-access.guard';
-import { CurrentStore } from '../../core/decorators';
+import { CurrentStore, RequireGlobalRole } from '../../core/decorators';
 
 @ApiTags('analytics')
 @Controller('analytics')
-@UseGuards(AuthGuard, StoreAccessGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @ApiBearerAuth()
 export class AnalyticsController {
     constructor(private readonly analyticsService: AnalyticsService) { }

@@ -44,6 +44,18 @@ export class CreateStoreDto {
     phone?: string;
 }
 
+export class SetCustomDomainDto {
+    @ApiProperty({ example: 'shop.example.com' })
+    @IsString()
+    @MinLength(4)
+    @MaxLength(253)
+    @Matches(/^(?!-)[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}$/, {
+        message: 'Invalid domain format (e.g. shop.example.com)',
+    })
+    @Transform(({ value }) => value?.toLowerCase().trim())
+    customDomain: string;
+}
+
 export class UpdateStoreDto {
     @ApiProperty({ required: false })
     @IsOptional()

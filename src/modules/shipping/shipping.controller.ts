@@ -2,13 +2,14 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } f
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ShippingService } from './shipping.service';
 import { CreateShippingMethodDto, UpdateShippingMethodDto, ReorderShippingMethodsDto } from './dto/shipping-method.dto';
-import { AuthGuard } from '../../core/guards';
+import { AuthGuard, GlobalRoleGuard } from '../../core/guards';
 import { StoreAccessGuard } from '../../core/guards/store-access.guard';
-import { CurrentStore } from '../../core/decorators';
+import { CurrentStore, RequireGlobalRole } from '../../core/decorators';
 
 @ApiTags('shipping')
 @Controller('shipping')
-@UseGuards(AuthGuard, StoreAccessGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @ApiBearerAuth()
 export class ShippingController {
     constructor(private readonly shippingService: ShippingService) { }

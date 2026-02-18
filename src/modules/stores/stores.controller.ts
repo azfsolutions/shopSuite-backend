@@ -10,13 +10,14 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StoresService } from './stores.service';
-import { CreateStoreDto, UpdateStoreDto } from './dto/store.dto';
-import { AuthGuard, StoreAccessGuard } from '../../core/guards';
-import { CurrentUser, CurrentStore, Roles } from '../../core/decorators';
+import { CreateStoreDto, UpdateStoreDto, SetCustomDomainDto } from './dto/store.dto';
+import { AuthGuard, StoreAccessGuard, GlobalRoleGuard } from '../../core/guards';
+import { CurrentUser, CurrentStore, Roles, RequireGlobalRole } from '../../core/decorators';
 
 @ApiTags('stores')
 @Controller('stores')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @ApiBearerAuth()
 export class StoresController {
     constructor(private readonly storesService: StoresService) { }
@@ -67,5 +68,24 @@ export class StoresController {
     @ApiOperation({ summary: 'Get store dashboard stats' })
     async getDashboard(@Param('storeId') storeId: string) {
         return this.storesService.getDashboardStats(storeId);
+    }
+
+    @Patch(':storeId/custom-domain')
+    @UseGuards(StoreAccessGuard)
+    @Roles('OWNER', 'ADMIN')
+    @ApiOperation({ summary: 'Set custom domain for store' })
+    async setCustomDomain(
+        @Param('storeId') storeId: string,
+        @Body() dto: SetCustomDomainDto,
+    ) {
+        return this.storesService.setCustomDomain(storeId, dto);
+    }
+
+    @Delete(':storeId/custom-domain')
+    @UseGuards(StoreAccessGuard)
+    @Roles('OWNER', 'ADMIN')
+    @ApiOperation({ summary: 'Remove custom domain from store' })
+    async removeCustomDomain(@Param('storeId') storeId: string) {
+        return this.storesService.removeCustomDomain(storeId);
     }
 }
