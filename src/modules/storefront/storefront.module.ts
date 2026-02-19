@@ -18,6 +18,8 @@ import { SettingsService } from './features/settings/settings.service';
 import { TestimonialsController } from './features/testimonials/testimonials.controller';
 import { TestimonialsService } from './features/testimonials/testimonials.service';
 import { FeaturedProductsService } from './features/featured-products/featured-products.service';
+import { StorefrontOrdersController } from './features/orders/storefront-orders.controller';
+import { StorefrontOrdersService } from './features/orders/storefront-orders.service';
 
 import { CouponsModule } from '../coupons/coupons.module';
 import { ShippingModule } from '../shipping/shipping.module';
@@ -33,7 +35,8 @@ import { ShippingModule } from '../shipping/shipping.module';
         FlashSalesController,
         NewsletterController,
         SettingsController,
-        TestimonialsController
+        TestimonialsController,
+        StorefrontOrdersController,
     ],
     providers: [
         StorefrontService,
@@ -43,7 +46,8 @@ import { ShippingModule } from '../shipping/shipping.module';
         NewsletterService,
         SettingsService,
         TestimonialsService,
-        FeaturedProductsService
+        FeaturedProductsService,
+        StorefrontOrdersService,
     ],
     exports: [FeaturedProductsService]
 })

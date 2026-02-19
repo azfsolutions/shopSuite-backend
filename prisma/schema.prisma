@@ -61,7 +61,8 @@ model User {
   notifications    Notification[]
   auditLogs        AuditLog[]
   customerProfiles StoreCustomerProfile[]
-  
+  customers        Customer[]
+
   // Better Auth Relations
   sessions         Session[]
   accounts         Account[]
@@ -639,6 +640,10 @@ model Customer {
   lastName  String?
   phone     String?
 
+  // Link to authenticated User (buyer)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
   emailVerified    Boolean @default(false)
   acceptsMarketing Boolean @default(false)
 
@@ -662,6 +667,7 @@ model Customer {
 
   @@unique([storeId, email])
   @@index([storeId])
+  @@index([userId])
   @@map("customers")
 }
 

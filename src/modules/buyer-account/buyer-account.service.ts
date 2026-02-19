@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAddressDto, UpdateAddressDto } from './dto/address.dto';
+import { UpdateBuyerProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class BuyerAccountService {
@@ -18,6 +19,26 @@ export class BuyerAccountService {
             profile = await this.prisma.storeCustomerProfile.create({
                 data: { userId, storeId },
             });
+
+            // Link User → Customer on first login to this store
+            const user = await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { email: true, firstName: true, lastName: true, phone: true },
+            });
+            if (user) {
+                await this.prisma.customer.upsert({
+                    where: { storeId_email: { storeId, email: user.email } },
+                    update: { userId },
+                    create: {
+                        storeId,
+                        email: user.email,
+                        firstName: user.firstName,
+                        lastName: user.lastName,
+                        phone: user.phone,
+                        userId,
+                    },
+                });
+            }
         }
 
         return profile;
@@ -46,6 +67,35 @@ export class BuyerAccountService {
                 lastOrderAt: profile.lastOrderAt,
             },
         };
+    }
+
+    async updateProfile(userId: string, dto: UpdateBuyerProfileDto) {
+        const updateData: Record<string, string> = {};
+        if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
+        if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
+        if (dto.phone !== undefined) updateData.phone = dto.phone;
+
+        if (dto.firstName !== undefined || dto.lastName !== undefined) {
+            const current = await this.prisma.user.findUnique({
+                where: { id: userId },
+                select: { firstName: true, lastName: true },
+            });
+            updateData.name = `${dto.firstName ?? current?.firstName} ${dto.lastName ?? current?.lastName}`;
+        }
+
+        const user = await this.prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                phone: true,
+            },
+        });
+
+        return user;
     }
 
     // ============= ADDRESSES =============

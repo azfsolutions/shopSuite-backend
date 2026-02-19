@@ -4,6 +4,7 @@ import { BetterAuthService } from './better-auth.service';
 import { BetterAuthController } from './better-auth.controller';
 import { BuyerAuthController } from './buyer-auth.controller';
 import { AuthGuard } from './guards/auth.guard';
+import { OptionalAuthGuard } from './guards/optional-auth.guard';
 import { GlobalRoleGuard } from '../../core/guards/global-role.guard';
 
 @Global()
@@ -12,12 +13,14 @@ import { GlobalRoleGuard } from '../../core/guards/global-role.guard';
     providers: [
         BetterAuthService,
         AuthGuard,
+        OptionalAuthGuard,
         GlobalRoleGuard,
     ],
     controllers: [BetterAuthController, BuyerAuthController],
     exports: [
         BetterAuthService,
         AuthGuard,
+        OptionalAuthGuard,
         GlobalRoleGuard,
     ],
 })
