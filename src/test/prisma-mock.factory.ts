@@ -69,6 +69,7 @@ export type MockPrismaService = {
     auditLog: MockModel;
     notification: MockModel;
     subscription: MockModel;
+    buyerAddress: MockModel;
     address: MockModel;
     session: MockModel;
     account: MockModel;
@@ -106,6 +107,7 @@ export function createMockPrismaService(): MockPrismaService {
         auditLog: createMockModel(),
         notification: createMockModel(),
         subscription: createMockModel(),
+        buyerAddress: createMockModel(),
         address: createMockModel(),
         session: createMockModel(),
         account: createMockModel(),

@@ -94,14 +94,14 @@ export class AnalyticsService {
         });
 
         // New customers
-        const newCustomers = await this.prisma.storeCustomerProfile.count({
+        const newCustomers = await this.prisma.customer.count({
             where: {
                 storeId,
                 createdAt: { gte: start, lte: end },
             },
         });
 
-        const previousCustomers = await this.prisma.storeCustomerProfile.count({
+        const previousCustomers = await this.prisma.customer.count({
             where: {
                 storeId,
                 createdAt: { gte: previousStart, lte: previousEnd },
@@ -277,7 +277,7 @@ export class AnalyticsService {
             orderBy: { totalSpent: 'desc' },
             take: limit,
             include: {
-                user: {
+                buyerUser: {
                     select: {
                         id: true,
                         email: true,
@@ -290,10 +290,10 @@ export class AnalyticsService {
 
         return {
             customers: profiles.map(p => ({
-                id: p.user.id,
-                email: p.user.email,
-                firstName: p.user.firstName,
-                lastName: p.user.lastName,
+                id: p.buyerUser?.id ?? p.id,
+                email: p.buyerUser?.email ?? '',
+                firstName: p.buyerUser?.firstName ?? '',
+                lastName: p.buyerUser?.lastName ?? '',
                 ordersCount: p.ordersCount,
                 totalSpent: Number(p.totalSpent),
             })),
@@ -522,29 +522,23 @@ export class AnalyticsService {
         const profiles = await this.prisma.storeCustomerProfile.findMany({
             where: {
                 storeId,
-                ordersCount: { gt: 0 },
                 lastOrderAt: { lt: cutoffDate },
             },
             include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        firstName: true,
-                        lastName: true,
-                    },
+                buyerUser: {
+                    select: { email: true, firstName: true, lastName: true },
                 },
             },
-            orderBy: { totalSpent: 'desc' },
             take: limit,
+            orderBy: { lastOrderAt: 'asc' },
         });
 
         return {
             customers: profiles.map(p => ({
-                id: p.user.id,
-                email: p.user.email,
-                firstName: p.user.firstName,
-                lastName: p.user.lastName,
+                id: p.buyerUserId,
+                email: p.buyerUser?.email ?? '',
+                firstName: p.buyerUser?.firstName ?? '',
+                lastName: p.buyerUser?.lastName ?? '',
                 totalSpent: Number(p.totalSpent),
                 ordersCount: p.ordersCount,
                 lastOrderAt: p.lastOrderAt?.toISOString() ?? null,

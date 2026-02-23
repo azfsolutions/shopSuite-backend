@@ -20,7 +20,8 @@ import {
     ApiQuery,
 } from '@nestjs/swagger';
 import { Response } from 'express';
-import { AuthGuard } from '../../../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/guards';
+import { CurrentStore, RequireGlobalRole } from '../../../../core/decorators';
 import { NewsletterService } from './newsletter.service';
 import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
 
@@ -90,6 +91,18 @@ export class NewsletterController {
     @ApiParam({ name: 'subscriberId', description: 'ID del suscriptor' })
     async delete(@Param('subscriberId') subscriberId: string) {
         return this.newsletterService.delete(subscriberId);
+    }
+
+    @Post('dashboard/stores/:storeId/newsletter/broadcast')
+    @ApiOperation({ summary: 'Enviar mensaje a todos los suscriptores' })
+    @ApiBearerAuth()
+    @UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+    @RequireGlobalRole('USER', 'SUPER_ADMIN')
+    async broadcast(
+        @CurrentStore('id') storeId: string,
+        @Body() body: { subject: string; message: string },
+    ) {
+        return this.newsletterService.broadcast(storeId, body.subject, body.message);
     }
 
     // ============================================================

@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Body, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
+import { UpdateUserProfileDto } from './dto/update-profile.dto';
 import { AuthGuard } from '../../core/guards';
 import { CurrentUser } from '../../core/decorators';
 
@@ -21,9 +22,9 @@ export class UsersController {
     @ApiOperation({ summary: 'Update current user profile' })
     async updateProfile(
         @CurrentUser('id') userId: string,
-        @Body() data: { firstName?: string; lastName?: string; avatar?: string },
+        @Body() dto: UpdateUserProfileDto,
     ) {
-        return this.usersService.updateProfile(userId, data);
+        return this.usersService.updateProfile(userId, dto);
     }
 
     @Get('me/stores')

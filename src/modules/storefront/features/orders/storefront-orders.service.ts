@@ -217,23 +217,23 @@ export class StorefrontOrdersService {
                     where: {
                         storeId_email: { storeId, email: dto.email.toLowerCase() },
                     },
-                    update: userId ? { userId } : {},
+                    update: userId ? { buyerUserId: userId } : {},
                     create: {
                         storeId,
                         email: dto.email.toLowerCase(),
                         firstName: dto.firstName,
                         lastName: dto.lastName,
                         phone: dto.phone,
-                        userId: userId ?? null,
+                        buyerUserId: userId ?? null,
                     },
                 });
 
                 // ── Step 8: Upsert StoreCustomerProfile (auth'd buyers only) ─
                 if (userId) {
                     await tx.storeCustomerProfile.upsert({
-                        where: { userId_storeId: { userId, storeId } },
+                        where: { buyerUserId_storeId: { buyerUserId: userId, storeId } },
                         update: {},
-                        create: { userId, storeId },
+                        create: { buyerUserId: userId, storeId },
                     });
                 }
 
@@ -311,7 +311,7 @@ export class StorefrontOrdersService {
                 // ── Step 13: Update StoreCustomerProfile stats (auth'd only) ─
                 if (userId) {
                     await tx.storeCustomerProfile.update({
-                        where: { userId_storeId: { userId, storeId } },
+                        where: { buyerUserId_storeId: { buyerUserId: userId, storeId } },
                         data: {
                             ordersCount: { increment: 1 },
                             totalSpent: { increment: total },

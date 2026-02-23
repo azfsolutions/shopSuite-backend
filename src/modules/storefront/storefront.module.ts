@@ -12,6 +12,7 @@ import { BenefitsService } from './features/benefits/benefits.service';
 import { FlashSalesController } from './features/flash-sales/flash-sales.controller';
 import { FlashSalesService } from './features/flash-sales/flash-sales.service';
 import { NewsletterController } from './features/newsletter/newsletter.controller';
+import { NewsletterPublicController } from './features/newsletter/newsletter-public.controller';
 import { NewsletterService } from './features/newsletter/newsletter.service';
 import { SettingsController } from './features/settings/settings.controller';
 import { SettingsService } from './features/settings/settings.service';
@@ -34,6 +35,7 @@ import { ShippingModule } from '../shipping/shipping.module';
         BenefitsController,
         FlashSalesController,
         NewsletterController,
+        NewsletterPublicController,
         SettingsController,
         TestimonialsController,
         StorefrontOrdersController,

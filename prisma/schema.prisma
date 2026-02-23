@@ -16,7 +16,6 @@ datasource db {
 
 enum GlobalRole {
   USER
-  BUYER
   SUPER_ADMIN
 }
 
@@ -60,8 +59,6 @@ model User {
   invitationsSent  StoreInvitation[]      @relation("InvitationSender")
   notifications    Notification[]
   auditLogs        AuditLog[]
-  customerProfiles StoreCustomerProfile[]
-  customers        Customer[]
 
   // Better Auth Relations
   sessions         Session[]
@@ -135,11 +132,62 @@ model Verification {
   expiresAt  DateTime
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
+
   @@index([identifier])
   @@map("verification")
 }
 
+// ============================================================
+// SECTION 1B: BUYER IDENTITY (Compradores del Storefront)
+// ============================================================
+
+model BuyerUser {
+  id        String  @id @default(uuid())
+  email     String  @unique
+  password  String?
+  firstName String
+  lastName  String
+  phone     String?
+  avatar    String?
+
+  emailVerified          Boolean   @default(false)
+  emailVerifiedAt        DateTime?
+  emailVerificationToken String?
+
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  // Relations
+  sessions       BuyerSession[]
+  storeProfiles  StoreCustomerProfile[]
+  customers      Customer[]
+  subscriptions  NewsletterSubscriber[]
+  notifications  BuyerNotification[]
+
+  @@index([email])
+  @@map("buyer_users")
+}
+
+model BuyerSession {
+  id          String   @id @default(uuid())
+  buyerUserId String
+  token       String   @unique
+  expiresAt   DateTime
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  buyerUser BuyerUser @relation(fields: [buyerUserId], references: [id], onDelete: Cascade)
+
+  @@index([buyerUserId])
+  @@index([token])
+  @@map("buyer_sessions")
+}
 
 // ============================================================
 // SECTION 2: STORES & MULTI-TENANCY
@@ -203,12 +251,13 @@ model Store {
   auditLogs        AuditLog[]
 
   // Storefront Features (NEW)
-  benefits       StoreBenefit[]
-  banners        Banner[]
-  flashSales     FlashSale[]
-  testimonials   Testimonial[]
-  newsletterSubs NewsletterSubscriber[]
-  
+  benefits           StoreBenefit[]
+  banners            Banner[]
+  flashSales         FlashSale[]
+  testimonials       Testimonial[]
+  newsletterSubs     NewsletterSubscriber[]
+  buyerNotifications BuyerNotification[]
+
   // Featured Products System (NEW)
   featuredConfig   FeaturedProductConfig?
   featuredProducts FeaturedProduct[]
@@ -640,9 +689,9 @@ model Customer {
   lastName  String?
   phone     String?
 
-  // Link to authenticated User (buyer)
-  userId String?
-  user   User?   @relation(fields: [userId], references: [id])
+  // Link to authenticated BuyerUser
+  buyerUserId String?
+  buyerUser   BuyerUser? @relation(fields: [buyerUserId], references: [id])
 
   emailVerified    Boolean @default(false)
   acceptsMarketing Boolean @default(false)
@@ -667,7 +716,7 @@ model Customer {
 
   @@unique([storeId, email])
   @@index([storeId])
-  @@index([userId])
+  @@index([buyerUserId])
   @@map("customers")
 }
 
@@ -700,9 +749,9 @@ model CustomerAddress {
 
 // StoreCustomerProfile - Perfil de comprador por tienda (Opción B)
 model StoreCustomerProfile {
-  id      String @id @default(uuid())
-  userId  String
-  storeId String
+  id          String @id @default(uuid())
+  buyerUserId String
+  storeId     String
 
   // Stats por tienda
   ordersCount Int     @default(0)
@@ -718,12 +767,12 @@ model StoreCustomerProfile {
   updatedAt   DateTime  @updatedAt
 
   // Relations
-  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  buyerUser      BuyerUser      @relation(fields: [buyerUserId], references: [id], onDelete: Cascade)
   store          Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   buyerAddresses BuyerAddress[]
 
-  @@unique([userId, storeId])
-  @@index([userId])
+  @@unique([buyerUserId, storeId])
+  @@index([buyerUserId])
   @@index([storeId])
   @@map("store_customer_profiles")
 }
@@ -1186,6 +1235,35 @@ model Notification {
   @@map("notifications")
 }
 
+enum BuyerNotificationType {
+  ORDER_UPDATE
+  NEWSLETTER
+  PROMOTIONAL
+}
+
+model BuyerNotification {
+  id          String                @id @default(uuid())
+  buyerUserId String
+  storeId     String
+  type        BuyerNotificationType
+  title       String
+  message     String
+  data        Json?
+
+  isRead  Boolean   @default(false)
+  readAt  DateTime?
+
+  createdAt DateTime @default(now())
+
+  buyerUser BuyerUser @relation(fields: [buyerUserId], references: [id], onDelete: Cascade)
+  store     Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([buyerUserId])
+  @@index([buyerUserId, isRead])
+  @@index([storeId])
+  @@map("buyer_notifications")
+}
+
 // ============================================================
 // SECTION 15: AUDIT LOGS
 // ============================================================
@@ -1367,8 +1445,11 @@ model NewsletterSubscriber {
   storeId String
   store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  email    String
-  isActive Boolean @default(true)
+  email       String
+  buyerUserId String?
+  buyerUser   BuyerUser? @relation(fields: [buyerUserId], references: [id], onDelete: SetNull)
+  consentAt   DateTime   @default(now())
+  isActive    Boolean    @default(true)
 
   createdAt DateTime @default(now())
 

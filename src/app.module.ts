@@ -21,6 +21,8 @@ import { WishlistModule } from './modules/wishlist/wishlist.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { SubscriptionsModule } from './modules/subscriptions/subscriptions.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { BuyerAuthModule } from './modules/buyer-auth/buyer-auth.module';
+import { BuyerNotificationsModule } from './modules/buyer-notifications/buyer-notifications.module';
 
 @Module({
     imports: [
@@ -44,6 +46,12 @@ import { AuditModule } from './modules/audit/audit.module';
 
         // Authentication (Better Auth)
         BetterAuthModule,
+
+        // Buyer Authentication
+        BuyerAuthModule,
+
+        // Buyer Notifications
+        BuyerNotificationsModule,
 
         // Feature Modules
         UsersModule,

@@ -5,66 +5,63 @@ import { PrismaService } from '../../database/prisma.service';
 export class CustomersService {
     private readonly logger = new Logger(CustomersService.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(private readonly prisma: PrismaService) {}
 
     async findAll(storeId: string, page = 1, limit = 20) {
-        const [profiles, total] = await Promise.all([
-            this.prisma.storeCustomerProfile.findMany({
-                where: { storeId },
-                skip: (page - 1) * limit,
+        const skip = (page - 1) * limit;
+
+        const [customers, total] = await Promise.all([
+            this.prisma.customer.findMany({
+                where: { storeId, deletedAt: null },
+                skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
                 include: {
-                    user: {
-                        select: { id: true, email: true, firstName: true, lastName: true },
+                    buyerUser: {
+                        select: { phone: true, emailVerified: true },
                     },
                 },
             }),
-            this.prisma.storeCustomerProfile.count({ where: { storeId } }),
+            this.prisma.customer.count({ where: { storeId, deletedAt: null } }),
         ]);
 
         return {
-            data: profiles.map(p => ({
-                id: p.id,
-                email: p.user.email,
-                firstName: p.user.firstName,
-                lastName: p.user.lastName,
-                phone: null,
-                ordersCount: p.ordersCount,
-                totalSpent: p.totalSpent,
-                notes: p.notes,
-                tags: p.tags,
-                lastOrderAt: p.lastOrderAt,
-                createdAt: p.createdAt,
+            data: customers.map(c => ({
+                id: c.id,
+                email: c.email,
+                firstName: c.firstName,
+                lastName: c.lastName,
+                phone: c.phone ?? c.buyerUser?.phone ?? null,
+                emailVerified: c.buyerUser?.emailVerified ?? c.emailVerified,
+                acceptsMarketing: c.acceptsMarketing,
+                ordersCount: c.ordersCount,
+                totalSpent: c.totalSpent,
+                notes: c.notes,
+                tags: c.tags,
+                lastOrderAt: c.lastOrderAt,
+                createdAt: c.createdAt,
             })),
             meta: { total, page, limit },
         };
     }
 
     async findById(storeId: string, customerId: string) {
-        const profile = await this.prisma.storeCustomerProfile.findFirst({
-            where: { id: customerId, storeId },
+        const customer = await this.prisma.customer.findFirst({
+            where: { id: customerId, storeId, deletedAt: null },
             include: {
-                user: {
-                    select: {
-                        id: true,
-                        email: true,
-                        firstName: true,
-                        lastName: true,
-                        phone: true,
-                        emailVerified: true,
-                    },
+                buyerUser: {
+                    select: { id: true, emailVerified: true, phone: true },
                 },
-                buyerAddresses: true,
+                addresses: true,
             },
         });
 
-        if (!profile) {
+        if (!customer) {
             throw new NotFoundException('Cliente no encontrado');
         }
 
         const orders = await this.prisma.order.findMany({
-            where: { storeId, customerEmail: profile.user.email },
+            where: { storeId, customerEmail: customer.email },
             take: 5,
             orderBy: { createdAt: 'desc' },
             select: {
@@ -81,10 +78,7 @@ export class CustomersService {
                         product: {
                             select: {
                                 name: true,
-                                images: {
-                                    take: 1,
-                                    select: { url: true },
-                                },
+                                images: { take: 1, select: { url: true } },
                             },
                         },
                     },
@@ -93,22 +87,22 @@ export class CustomersService {
         });
 
         return {
-            id: profile.id,
-            storeId: profile.storeId,
-            email: profile.user.email,
-            firstName: profile.user.firstName,
-            lastName: profile.user.lastName,
-            phone: profile.user.phone,
-            emailVerified: profile.user.emailVerified,
-            acceptsMarketing: profile.acceptsMarketing,
-            ordersCount: profile.ordersCount,
-            totalSpent: profile.totalSpent,
-            notes: profile.notes,
-            tags: profile.tags,
-            lastOrderAt: profile.lastOrderAt,
-            createdAt: profile.createdAt,
-            updatedAt: profile.updatedAt,
-            addresses: profile.buyerAddresses,
+            id: customer.id,
+            storeId: customer.storeId,
+            email: customer.email,
+            firstName: customer.firstName,
+            lastName: customer.lastName,
+            phone: customer.phone ?? customer.buyerUser?.phone ?? null,
+            emailVerified: customer.buyerUser?.emailVerified ?? customer.emailVerified,
+            acceptsMarketing: customer.acceptsMarketing,
+            ordersCount: customer.ordersCount,
+            totalSpent: customer.totalSpent,
+            notes: customer.notes,
+            tags: customer.tags,
+            lastOrderAt: customer.lastOrderAt,
+            createdAt: customer.createdAt,
+            updatedAt: customer.updatedAt,
+            addresses: customer.addresses,
             orders,
         };
     }

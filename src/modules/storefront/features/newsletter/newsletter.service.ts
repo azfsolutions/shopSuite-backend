@@ -3,6 +3,7 @@ import {
     ConflictException,
     NotFoundException,
 } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
 
@@ -11,6 +12,8 @@ import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
  */
 @Injectable()
 export class NewsletterService {
+    private readonly logger = new Logger(NewsletterService.name);
+
     constructor(private readonly prisma: PrismaService) { }
 
     /**
@@ -154,6 +157,45 @@ export class NewsletterService {
         return {
             total,
             last30Days: recentCount,
+        };
+    }
+
+    /**
+     * Enviar mensaje a todos los suscriptores activos de una tienda
+     */
+    async broadcast(storeId: string, subject: string, message: string) {
+        const subscribers = await this.prisma.newsletterSubscriber.findMany({
+            where: { storeId, isActive: true },
+            include: {
+                buyerUser: { select: { id: true } },
+            },
+        });
+
+        // Crear BuyerNotification para suscriptores con cuenta
+        const notificationPromises = subscribers
+            .filter(s => s.buyerUser)
+            .map(s =>
+                this.prisma.buyerNotification.create({
+                    data: {
+                        buyerUserId: s.buyerUser!.id,
+                        storeId,
+                        type: 'NEWSLETTER' as const,
+                        title: subject,
+                        message,
+                    },
+                }),
+            );
+
+        await Promise.all(notificationPromises);
+
+        this.logger.log(
+            `Newsletter broadcast: ${subject} enviado a ${subscribers.length} suscriptores en tienda ${storeId}`,
+        );
+
+        return {
+            sent: subscribers.length,
+            withAccount: subscribers.filter(s => s.buyerUser).length,
+            emailOnly: subscribers.filter(s => !s.buyerUser).length,
         };
     }
 }

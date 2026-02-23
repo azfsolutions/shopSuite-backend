@@ -54,14 +54,6 @@ export class BuyerAuthController {
                 },
             });
 
-            // Force globalRole to BUYER server-side (input: false prevents client override)
-            if (result.user?.id) {
-                await this.prisma.user.update({
-                    where: { id: result.user.id },
-                    data: { globalRole: 'BUYER' },
-                });
-            }
-
             return result;
         } catch (error) {
             this.logger.error({

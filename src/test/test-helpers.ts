@@ -134,6 +134,40 @@ export function createMockUser(overrides: Record<string, any> = {}) {
     };
 }
 
+export function createMockStoreCustomerProfile(overrides: Record<string, any> = {}) {
+    return {
+        id: 'profile-1',
+        userId: 'user-1',
+        storeId: 'store-1',
+        ordersCount: 2,
+        totalSpent: 25000,
+        lastOrderAt: new Date('2024-06-15'),
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        ...overrides,
+    };
+}
+
+export function createMockBuyerAddress(overrides: Record<string, any> = {}) {
+    return {
+        id: 'addr-1',
+        profileId: 'profile-1',
+        label: 'Casa',
+        recipientName: 'Juan Pérez',
+        phone: '+595991234567',
+        street: 'Av. España 1234',
+        city: 'Asunción',
+        state: 'Central',
+        postalCode: '1234',
+        country: 'PY',
+        isDefault: true,
+        notes: null,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-01'),
+        ...overrides,
+    };
+}
+
 export function createMockShippingMethod(overrides: Record<string, any> = {}) {
     return {
         id: 'ship-1',

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { CreateAddressDto, UpdateAddressDto } from './dto/address.dto';
 import { UpdateBuyerProfileDto } from './dto/update-profile.dto';
@@ -8,83 +8,45 @@ export class BuyerAccountService {
     constructor(private readonly prisma: PrismaService) { }
 
     // ============= PROFILE =============
-    async getOrCreateProfile(userId: string, storeId: string) {
-        let profile = await this.prisma.storeCustomerProfile.findUnique({
-            where: {
-                userId_storeId: { userId, storeId },
-            },
+    async getOrCreateProfile(buyerUserId: string, storeId: string) {
+        // Solo busca si existe, NO crea automáticamente
+        const profile = await this.prisma.storeCustomerProfile.findUnique({
+            where: { buyerUserId_storeId: { buyerUserId, storeId } },
         });
-
-        if (!profile) {
-            profile = await this.prisma.storeCustomerProfile.create({
-                data: { userId, storeId },
-            });
-
-            // Link User → Customer on first login to this store
-            const user = await this.prisma.user.findUnique({
-                where: { id: userId },
-                select: { email: true, firstName: true, lastName: true, phone: true },
-            });
-            if (user) {
-                await this.prisma.customer.upsert({
-                    where: { storeId_email: { storeId, email: user.email } },
-                    update: { userId },
-                    create: {
-                        storeId,
-                        email: user.email,
-                        firstName: user.firstName,
-                        lastName: user.lastName,
-                        phone: user.phone,
-                        userId,
-                    },
-                });
-            }
-        }
-
         return profile;
     }
 
-    async getProfileWithUser(userId: string, storeId: string) {
-        const profile = await this.getOrCreateProfile(userId, storeId);
+    async getProfileWithUser(buyerUserId: string, storeId: string) {
+        const buyerUser = await this.prisma.buyerUser.findUnique({
+            where: { id: buyerUserId },
+            select: { id: true, email: true, firstName: true, lastName: true, phone: true },
+        });
 
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                phone: true,
-            },
+        if (!buyerUser) throw new NotFoundException('Comprador no encontrado');
+
+        const profile = await this.prisma.storeCustomerProfile.findUnique({
+            where: { buyerUserId_storeId: { buyerUserId, storeId } },
         });
 
         return {
-            ...user,
-            storeProfile: {
+            ...buyerUser,
+            storeProfile: profile ? {
                 ordersCount: profile.ordersCount,
                 totalSpent: Number(profile.totalSpent),
                 memberSince: profile.createdAt,
                 lastOrderAt: profile.lastOrderAt,
-            },
+            } : null,
         };
     }
 
-    async updateProfile(userId: string, dto: UpdateBuyerProfileDto) {
+    async updateProfile(buyerUserId: string, dto: UpdateBuyerProfileDto) {
         const updateData: Record<string, string> = {};
         if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
         if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
         if (dto.phone !== undefined) updateData.phone = dto.phone;
 
-        if (dto.firstName !== undefined || dto.lastName !== undefined) {
-            const current = await this.prisma.user.findUnique({
-                where: { id: userId },
-                select: { firstName: true, lastName: true },
-            });
-            updateData.name = `${dto.firstName ?? current?.firstName} ${dto.lastName ?? current?.lastName}`;
-        }
-
-        const user = await this.prisma.user.update({
-            where: { id: userId },
+        const buyerUser = await this.prisma.buyerUser.update({
+            where: { id: buyerUserId },
             data: updateData,
             select: {
                 id: true,
@@ -95,21 +57,26 @@ export class BuyerAccountService {
             },
         });
 
-        return user;
+        return buyerUser;
     }
 
     // ============= ADDRESSES =============
-    async getAddresses(userId: string, storeId: string) {
-        const profile = await this.getOrCreateProfile(userId, storeId);
-
-        return this.prisma.buyerAddress.findMany({
-            where: { profileId: profile.id },
-            orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
+    async getAddresses(buyerUserId: string, storeId: string) {
+        const profile = await this.prisma.storeCustomerProfile.findUnique({
+            where: { buyerUserId_storeId: { buyerUserId, storeId } },
+            include: { buyerAddresses: true },
         });
+        return profile?.buyerAddresses ?? [];
     }
 
-    async createAddress(userId: string, storeId: string, dto: CreateAddressDto) {
-        const profile = await this.getOrCreateProfile(userId, storeId);
+    async createAddress(buyerUserId: string, storeId: string, dto: CreateAddressDto) {
+        const profile = await this.prisma.storeCustomerProfile.findUnique({
+            where: { buyerUserId_storeId: { buyerUserId, storeId } },
+        });
+
+        if (!profile) {
+            throw new NotFoundException('Perfil no encontrado para esta tienda');
+        }
 
         // Si es default, quitar default de las demás
         if (dto.isDefault) {
@@ -127,8 +94,14 @@ export class BuyerAccountService {
         });
     }
 
-    async updateAddress(userId: string, storeId: string, addressId: string, dto: UpdateAddressDto) {
-        const profile = await this.getOrCreateProfile(userId, storeId);
+    async updateAddress(buyerUserId: string, storeId: string, addressId: string, dto: UpdateAddressDto) {
+        const profile = await this.prisma.storeCustomerProfile.findUnique({
+            where: { buyerUserId_storeId: { buyerUserId, storeId } },
+        });
+
+        if (!profile) {
+            throw new NotFoundException('Perfil no encontrado para esta tienda');
+        }
 
         const address = await this.prisma.buyerAddress.findFirst({
             where: { id: addressId, profileId: profile.id },
@@ -152,8 +125,14 @@ export class BuyerAccountService {
         });
     }
 
-    async deleteAddress(userId: string, storeId: string, addressId: string) {
-        const profile = await this.getOrCreateProfile(userId, storeId);
+    async deleteAddress(buyerUserId: string, storeId: string, addressId: string) {
+        const profile = await this.prisma.storeCustomerProfile.findUnique({
+            where: { buyerUserId_storeId: { buyerUserId, storeId } },
+        });
+
+        if (!profile) {
+            throw new NotFoundException('Perfil no encontrado para esta tienda');
+        }
 
         const address = await this.prisma.buyerAddress.findFirst({
             where: { id: addressId, profileId: profile.id },
@@ -171,12 +150,21 @@ export class BuyerAccountService {
     }
 
     // ============= ORDERS =============
-    async getOrders(userId: string, storeId: string, page = 1, limit = 10) {
-        const profile = await this.getOrCreateProfile(userId, storeId);
+    async getOrders(buyerUserId: string, storeId: string, page = 1, limit = 10) {
+        const customer = await this.prisma.customer.findFirst({
+            where: { storeId, buyerUserId },
+        });
+
+        if (!customer) {
+            return {
+                orders: [],
+                pagination: { page, limit, total: 0, totalPages: 0 },
+            };
+        }
 
         const where = {
             storeId,
-            customerEmail: await this.getUserEmail(userId),
+            customerEmail: customer.email,
         };
 
         const [orders, total] = await Promise.all([
@@ -214,14 +202,20 @@ export class BuyerAccountService {
         };
     }
 
-    async getOrderDetail(userId: string, storeId: string, orderId: string) {
-        const userEmail = await this.getUserEmail(userId);
+    async getOrderDetail(buyerUserId: string, storeId: string, orderId: string) {
+        const customer = await this.prisma.customer.findFirst({
+            where: { storeId, buyerUserId },
+        });
+
+        if (!customer) {
+            throw new NotFoundException('Pedido no encontrado');
+        }
 
         const order = await this.prisma.order.findFirst({
             where: {
                 id: orderId,
                 storeId,
-                customerEmail: userEmail,
+                customerEmail: customer.email,
             },
             include: {
                 items: {
@@ -267,13 +261,5 @@ export class BuyerAccountService {
             trackingNumber: order.trackingNumber,
             trackingUrl: order.trackingUrl,
         };
-    }
-
-    private async getUserEmail(userId: string): Promise<string> {
-        const user = await this.prisma.user.findUnique({
-            where: { id: userId },
-            select: { email: true },
-        });
-        return user?.email || '';
     }
 }

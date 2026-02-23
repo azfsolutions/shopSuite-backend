@@ -2,12 +2,13 @@ import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Re
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BuyerAccountService } from './buyer-account.service';
 import { CreateAddressDto, UpdateAddressDto } from './dto/address.dto';
-import { AuthGuard } from '../../core/guards';
+import { UpdateBuyerProfileDto } from './dto/update-profile.dto';
+import { BuyerAuthGuard } from '../../modules/buyer-auth/guards/buyer-auth.guard';
 import { PrismaService } from '../../database/prisma.service';
 
 @ApiTags('buyer-account')
 @Controller('storefront/:storeSlug/account')
-@UseGuards(AuthGuard)
+@UseGuards(BuyerAuthGuard)
 @ApiBearerAuth()
 export class BuyerAccountController {
     constructor(
@@ -29,7 +30,18 @@ export class BuyerAccountController {
     @ApiOperation({ summary: 'Obtener perfil con datos de la tienda' })
     async getProfile(@Request() req: any, @Param('storeSlug') storeSlug: string) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.accountService.getProfileWithUser(req.user.id, storeId);
+        return this.accountService.getProfileWithUser(req.buyerUser.id, storeId);
+    }
+
+    @Patch('profile')
+    @ApiOperation({ summary: 'Actualizar perfil del comprador' })
+    async updateProfile(
+        @Request() req: any,
+        @Param('storeSlug') storeSlug: string,
+        @Body() dto: UpdateBuyerProfileDto,
+    ) {
+        await this.getStoreId(storeSlug);
+        return this.accountService.updateProfile(req.buyerUser.id, dto);
     }
 
     // ============= ADDRESSES =============
@@ -37,7 +49,7 @@ export class BuyerAccountController {
     @ApiOperation({ summary: 'Listar direcciones del comprador' })
     async getAddresses(@Request() req: any, @Param('storeSlug') storeSlug: string) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.accountService.getAddresses(req.user.id, storeId);
+        return this.accountService.getAddresses(req.buyerUser.id, storeId);
     }
 
     @Post('addresses')
@@ -48,7 +60,7 @@ export class BuyerAccountController {
         @Body() dto: CreateAddressDto,
     ) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.accountService.createAddress(req.user.id, storeId, dto);
+        return this.accountService.createAddress(req.buyerUser.id, storeId, dto);
     }
 
     @Patch('addresses/:id')
@@ -60,7 +72,7 @@ export class BuyerAccountController {
         @Body() dto: UpdateAddressDto,
     ) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.accountService.updateAddress(req.user.id, storeId, addressId, dto);
+        return this.accountService.updateAddress(req.buyerUser.id, storeId, addressId, dto);
     }
 
     @Delete('addresses/:id')
@@ -71,7 +83,7 @@ export class BuyerAccountController {
         @Param('id') addressId: string,
     ) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.accountService.deleteAddress(req.user.id, storeId, addressId);
+        return this.accountService.deleteAddress(req.buyerUser.id, storeId, addressId);
     }
 
     // ============= ORDERS =============
@@ -87,7 +99,7 @@ export class BuyerAccountController {
     ) {
         const storeId = await this.getStoreId(storeSlug);
         return this.accountService.getOrders(
-            req.user.id,
+            req.buyerUser.id,
             storeId,
             page ? parseInt(page) : 1,
             limit ? parseInt(limit) : 10,
@@ -102,6 +114,6 @@ export class BuyerAccountController {
         @Param('id') orderId: string,
     ) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.accountService.getOrderDetail(req.user.id, storeId, orderId);
+        return this.accountService.getOrderDetail(req.buyerUser.id, storeId, orderId);
     }
 }
