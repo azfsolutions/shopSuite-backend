@@ -28,3 +28,20 @@ export class AnalyticsQueryDto {
     @Max(50)
     limit?: number = 10;
 }
+
+export class AtRiskCustomersQueryDto {
+    @ApiPropertyOptional({ description: 'Días sin comprar para considerar cliente en riesgo', default: 60 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    daysInactive?: number = 60;
+
+    @ApiPropertyOptional({ default: 20, minimum: 1, maximum: 100 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsInt()
+    @Min(1)
+    @Max(100)
+    limit?: number = 20;
+}

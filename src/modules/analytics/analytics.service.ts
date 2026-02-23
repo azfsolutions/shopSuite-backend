@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service';
-import { AnalyticsQueryDto, AnalyticsPeriod } from './dto/analytics-query.dto';
+import { AnalyticsQueryDto, AnalyticsPeriod, AtRiskCustomersQueryDto } from './dto/analytics-query.dto';
 
 @Injectable()
 export class AnalyticsService {
@@ -295,6 +296,261 @@ export class AnalyticsService {
                 lastName: p.user.lastName,
                 ordersCount: p.ordersCount,
                 totalSpent: Number(p.totalSpent),
+            })),
+        };
+    }
+
+    async getDashboardAlerts(storeId: string) {
+        const urgentCutoff = new Date(Date.now() - 2 * 60 * 60 * 1000);
+
+        const [lowStock, urgentOrders] = await Promise.all([
+            this.prisma.$queryRaw<Array<{
+                id: string;
+                name: string;
+                stock: number;
+                lowStockThreshold: number;
+                sku: string | null;
+            }>>(Prisma.sql`
+                SELECT id, name, stock, "lowStockThreshold", sku
+                FROM products
+                WHERE "storeId" = ${storeId}
+                  AND "trackInventory" = true
+                  AND stock <= "lowStockThreshold"
+                  AND "deletedAt" IS NULL
+                ORDER BY stock ASC
+                LIMIT 5
+            `),
+            this.prisma.order.findMany({
+                where: {
+                    storeId,
+                    status: 'PENDING',
+                    createdAt: { lt: urgentCutoff },
+                },
+                select: {
+                    id: true,
+                    orderNumber: true,
+                    createdAt: true,
+                    customerFirstName: true,
+                    customerLastName: true,
+                },
+                orderBy: { createdAt: 'asc' },
+                take: 10,
+            }),
+        ]);
+
+        return {
+            lowStock: lowStock.map(p => ({
+                ...p,
+                stock: Number(p.stock),
+                lowStockThreshold: Number(p.lowStockThreshold),
+            })),
+            urgentOrders: urgentOrders.map(o => ({
+                ...o,
+                hoursWaiting: Math.floor((Date.now() - o.createdAt.getTime()) / (1000 * 60 * 60)),
+            })),
+        };
+    }
+
+    async getProductMargin(storeId: string, query: AnalyticsQueryDto) {
+        const { start, end } = this.getDateRange(
+            query.period || 'month',
+            query.startDate,
+            query.endDate,
+        );
+
+        const products = await this.prisma.product.findMany({
+            where: {
+                storeId,
+                costPerItem: { gt: 0 },
+                deletedAt: null,
+            },
+            select: {
+                id: true,
+                name: true,
+                price: true,
+                costPerItem: true,
+            },
+            orderBy: { price: 'desc' },
+        });
+
+        if (products.length === 0) return { products: [] };
+
+        const productIds = products.map(p => p.id);
+
+        const salesData = await this.prisma.orderItem.groupBy({
+            by: ['productId'],
+            where: {
+                productId: { in: productIds },
+                order: {
+                    storeId,
+                    status: { not: 'CANCELLED' },
+                    createdAt: { gte: start, lte: end },
+                },
+            },
+            _sum: { quantity: true, totalPrice: true },
+        });
+
+        const salesMap = new Map(salesData.map(s => [s.productId, s]));
+
+        const result = products.map(p => {
+            const price = Number(p.price);
+            const cost = Number(p.costPerItem);
+            const margin = price - cost;
+            const marginPct = price > 0 ? (margin / price) * 100 : 0;
+            const sales = salesMap.get(p.id);
+            const unitsSold = Number(sales?._sum.quantity || 0);
+            const revenue = Number(sales?._sum.totalPrice || 0);
+
+            return {
+                id: p.id,
+                name: p.name,
+                price,
+                costPerItem: cost,
+                margin: Math.round(margin * 100) / 100,
+                marginPct: Math.round(marginPct * 10) / 10,
+                unitsSold,
+                revenue: Math.round(revenue * 100) / 100,
+            };
+        });
+
+        result.sort((a, b) => b.margin - a.margin);
+
+        return { products: result };
+    }
+
+    async getCustomerSegments(storeId: string) {
+        const profiles = await this.prisma.storeCustomerProfile.findMany({
+            where: { storeId, ordersCount: { gt: 0 } },
+            select: { totalSpent: true },
+        });
+
+        const counts = { alto: 0, medio: 0, bajo: 0 };
+        const revenue = { alto: 0, medio: 0, bajo: 0 };
+
+        for (const p of profiles) {
+            const spent = Number(p.totalSpent);
+            if (spent > 500) {
+                counts.alto++;
+                revenue.alto += spent;
+            } else if (spent >= 100) {
+                counts.medio++;
+                revenue.medio += spent;
+            } else {
+                counts.bajo++;
+                revenue.bajo += spent;
+            }
+        }
+
+        const total = profiles.length;
+        const totalRevenue = revenue.alto + revenue.medio + revenue.bajo;
+
+        return {
+            segments: [
+                {
+                    label: 'Alto',
+                    count: counts.alto,
+                    totalRevenue: Math.round(revenue.alto * 100) / 100,
+                    percentage: total > 0 ? Math.round((counts.alto / total) * 1000) / 10 : 0,
+                    revenuePercentage: totalRevenue > 0 ? Math.round((revenue.alto / totalRevenue) * 1000) / 10 : 0,
+                },
+                {
+                    label: 'Medio',
+                    count: counts.medio,
+                    totalRevenue: Math.round(revenue.medio * 100) / 100,
+                    percentage: total > 0 ? Math.round((counts.medio / total) * 1000) / 10 : 0,
+                    revenuePercentage: totalRevenue > 0 ? Math.round((revenue.medio / totalRevenue) * 1000) / 10 : 0,
+                },
+                {
+                    label: 'Bajo',
+                    count: counts.bajo,
+                    totalRevenue: Math.round(revenue.bajo * 100) / 100,
+                    percentage: total > 0 ? Math.round((counts.bajo / total) * 1000) / 10 : 0,
+                    revenuePercentage: totalRevenue > 0 ? Math.round((revenue.bajo / totalRevenue) * 1000) / 10 : 0,
+                },
+            ],
+            total,
+            totalRevenue: Math.round(totalRevenue * 100) / 100,
+        };
+    }
+
+    async getSalesHeatmap(storeId: string, query: AnalyticsQueryDto) {
+        const { start, end } = this.getDateRange(
+            query.period || 'month',
+            query.startDate,
+            query.endDate,
+        );
+
+        try {
+            const rows = await this.prisma.$queryRaw<Array<{
+                dayOfWeek: number;
+                hour: number;
+                count: number;
+                total: number;
+            }>>(Prisma.sql`
+                SELECT
+                    EXTRACT(DOW FROM "createdAt" AT TIME ZONE 'UTC')::int AS "dayOfWeek",
+                    EXTRACT(HOUR FROM "createdAt" AT TIME ZONE 'UTC')::int AS "hour",
+                    COUNT(*)::int AS count,
+                    COALESCE(SUM(total), 0)::float AS total
+                FROM orders
+                WHERE "storeId" = ${storeId}
+                  AND status != 'CANCELLED'
+                  AND "createdAt" >= ${start}
+                  AND "createdAt" <= ${end}
+                GROUP BY "dayOfWeek", "hour"
+                ORDER BY "dayOfWeek", "hour"
+            `);
+
+            return {
+                cells: rows.map(r => ({
+                    dayOfWeek: Number(r.dayOfWeek),
+                    hour: Number(r.hour),
+                    count: Number(r.count),
+                    total: Number(r.total),
+                })),
+            };
+        } catch (error) {
+            throw new InternalServerErrorException('Error al obtener datos del heatmap de ventas');
+        }
+    }
+
+    async getAtRiskCustomers(storeId: string, query: AtRiskCustomersQueryDto) {
+        const daysInactive = query.daysInactive ?? 60;
+        const limit = query.limit ?? 20;
+        const cutoffDate = new Date(Date.now() - daysInactive * 24 * 60 * 60 * 1000);
+
+        const profiles = await this.prisma.storeCustomerProfile.findMany({
+            where: {
+                storeId,
+                ordersCount: { gt: 0 },
+                lastOrderAt: { lt: cutoffDate },
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                    },
+                },
+            },
+            orderBy: { totalSpent: 'desc' },
+            take: limit,
+        });
+
+        return {
+            customers: profiles.map(p => ({
+                id: p.user.id,
+                email: p.user.email,
+                firstName: p.user.firstName,
+                lastName: p.user.lastName,
+                totalSpent: Number(p.totalSpent),
+                ordersCount: p.ordersCount,
+                lastOrderAt: p.lastOrderAt?.toISOString() ?? null,
+                daysInactive: p.lastOrderAt
+                    ? Math.floor((Date.now() - p.lastOrderAt.getTime()) / (1000 * 60 * 60 * 24))
+                    : null,
             })),
         };
     }
