@@ -8,72 +8,108 @@ export class CustomersService {
     constructor(private readonly prisma: PrismaService) { }
 
     async findAll(storeId: string, page = 1, limit = 20) {
-        const [customers, total] = await Promise.all([
-            this.prisma.customer.findMany({
-                where: { storeId, deletedAt: null },
+        const [profiles, total] = await Promise.all([
+            this.prisma.storeCustomerProfile.findMany({
+                where: { storeId },
                 skip: (page - 1) * limit,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
+                include: {
+                    user: {
+                        select: { id: true, email: true, firstName: true, lastName: true },
+                    },
+                },
             }),
-            this.prisma.customer.count({ where: { storeId, deletedAt: null } }),
+            this.prisma.storeCustomerProfile.count({ where: { storeId } }),
         ]);
-        return { data: customers, meta: { total, page, limit } };
+
+        return {
+            data: profiles.map(p => ({
+                id: p.id,
+                email: p.user.email,
+                firstName: p.user.firstName,
+                lastName: p.user.lastName,
+                phone: null,
+                ordersCount: p.ordersCount,
+                totalSpent: p.totalSpent,
+                notes: p.notes,
+                tags: p.tags,
+                lastOrderAt: p.lastOrderAt,
+                createdAt: p.createdAt,
+            })),
+            meta: { total, page, limit },
+        };
     }
 
     async findById(storeId: string, customerId: string) {
-        const customer = await this.prisma.customer.findFirst({
+        const profile = await this.prisma.storeCustomerProfile.findFirst({
             where: { id: customerId, storeId },
-            select: {
-                id: true,
-                storeId: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                phone: true,
-                emailVerified: true,
-                acceptsMarketing: true,
-                ordersCount: true,
-                totalSpent: true,
-                notes: true,
-                tags: true,
-                lastOrderAt: true,
-                createdAt: true,
-                updatedAt: true,
-                addresses: true,
-                orders: {
-                    take: 5,
-                    orderBy: { createdAt: 'desc' },
+            include: {
+                user: {
                     select: {
                         id: true,
-                        orderNumber: true,
-                        total: true,
-                        status: true,
-                        paymentStatus: true,
-                        createdAt: true,
-                        items: {
-                            select: {
-                                id: true,
-                                quantity: true,
-                                product: {
-                                    select: {
-                                        name: true,
-                                        images: {
-                                            take: 1,
-                                            select: { url: true }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                        email: true,
+                        firstName: true,
+                        lastName: true,
+                        phone: true,
+                        emailVerified: true,
+                    },
+                },
+                buyerAddresses: true,
+            },
         });
 
-        if (!customer) {
+        if (!profile) {
             throw new NotFoundException('Cliente no encontrado');
         }
 
-        return customer;
+        const orders = await this.prisma.order.findMany({
+            where: { storeId, customerEmail: profile.user.email },
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                orderNumber: true,
+                total: true,
+                status: true,
+                paymentStatus: true,
+                createdAt: true,
+                items: {
+                    select: {
+                        id: true,
+                        quantity: true,
+                        product: {
+                            select: {
+                                name: true,
+                                images: {
+                                    take: 1,
+                                    select: { url: true },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+
+        return {
+            id: profile.id,
+            storeId: profile.storeId,
+            email: profile.user.email,
+            firstName: profile.user.firstName,
+            lastName: profile.user.lastName,
+            phone: profile.user.phone,
+            emailVerified: profile.user.emailVerified,
+            acceptsMarketing: profile.acceptsMarketing,
+            ordersCount: profile.ordersCount,
+            totalSpent: profile.totalSpent,
+            notes: profile.notes,
+            tags: profile.tags,
+            lastOrderAt: profile.lastOrderAt,
+            createdAt: profile.createdAt,
+            updatedAt: profile.updatedAt,
+            addresses: profile.buyerAddresses,
+            orders,
+        };
     }
 }
