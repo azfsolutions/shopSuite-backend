@@ -12,7 +12,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { StoresService } from './stores.service';
 import { CreateStoreDto, UpdateStoreDto, SetCustomDomainDto } from './dto/store.dto';
 import { AuthGuard, StoreAccessGuard, GlobalRoleGuard } from '../../core/guards';
-import { CurrentUser, CurrentStore, Roles, RequireGlobalRole } from '../../core/decorators';
+import { CurrentUser, Roles, RequireGlobalRole } from '../../core/decorators';
 
 @ApiTags('stores')
 @Controller('stores')

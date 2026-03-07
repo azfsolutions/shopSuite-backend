@@ -9,7 +9,6 @@ import {
     MaxLength,
     IsEmail,
     IsUUID,
-    IsUrl,
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
