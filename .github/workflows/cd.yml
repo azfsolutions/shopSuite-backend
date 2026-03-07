@@ -30,6 +30,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create .env for Prisma
+        run: |
+          echo "DATABASE_URL=${DATABASE_URL}" > prisma/.env
+
       - name: Generate Prisma client
         run: npm run prisma:generate
 
@@ -38,7 +42,12 @@ jobs:
 
       - name: Run migrations (production only)
         if: github.ref_name == 'main'
-        run: npx prisma migrate deploy
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "⚠️  PROD_DATABASE_URL no configurado — omitiendo migraciones"
+            exit 0
+          fi
+          npx prisma migrate deploy
 
       # ─── CONFIGURAR DEPLOYMENT ──────────────────────────────────────────────
       # Descomenta y adapta el bloque correspondiente a tu proveedor de hosting
