@@ -65,6 +65,7 @@ describe('BetterAuthService', () => {
         });
 
         it('should call createAuthInstance with PrismaService', () => {
+            // eslint-disable-next-line @typescript-eslint/no-var-requires
             const { createAuthInstance } = require('../../lib/auth');
             service.auth;
             expect(createAuthInstance).toHaveBeenCalledWith(mockPrismaService);
