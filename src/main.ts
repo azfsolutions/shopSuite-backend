@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './core/filters/global-exception.filter';
 import { PrismaExceptionFilter } from './core/filters/prisma-exception.filter';
@@ -18,6 +19,13 @@ async function bootstrap() {
         new PrismaExceptionFilter(),
         new GlobalExceptionFilter(),
     );
+
+    // Trust proxy headers (Railway/Render set X-Forwarded-For)
+    // Required for correct IP detection behind load balancers
+    app.getHttpAdapter().getInstance().set('trust proxy', 1);
+
+    // Cookie parser — required for httpOnly cookie auth (buyer_token)
+    app.use(cookieParser());
 
     // ============================================================
     // 🔐 SECURITY HEADERS - HELMET

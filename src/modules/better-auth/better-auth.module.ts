@@ -8,7 +8,7 @@ import { GlobalRoleGuard } from '../../core/guards/global-role.guard';
 
 @Global()
 @Module({
-    imports: [PrismaModule],
+    imports: [PrismaModule], // RedisModule is @Global — no need to import explicitly
     providers: [
         BetterAuthService,
         AuthGuard,

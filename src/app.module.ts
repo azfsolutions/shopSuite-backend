@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './database/prisma.module';
 import { CoreModule } from './core/core.module';
+import { RedisModule } from './modules/redis/redis.module';
 import { BetterAuthModule } from './modules/better-auth/better-auth.module';
 import { UsersModule } from './modules/users/users.module';
 import { StoresModule } from './modules/stores/stores.module';
@@ -43,6 +44,9 @@ import { BuyerNotificationsModule } from './modules/buyer-notifications/buyer-no
 
         // Core
         CoreModule,
+
+        // Redis — @Global, must be before any module that uses RedisService
+        RedisModule,
 
         // Authentication (Better Auth)
         BetterAuthModule,
