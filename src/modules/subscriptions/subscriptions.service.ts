@@ -10,7 +10,6 @@ const PLAN_LIMITS = {
     ENTERPRISE: { products: -1, staff: -1, storageGB: 50 }, // -1 = ilimitado
 };
 
-const GRACE_PERIOD_DAYS = 7;
 
 @Injectable()
 export class SubscriptionsService {
@@ -164,9 +163,6 @@ export class SubscriptionsService {
             throw new BadRequestException('No puedes cancelar el plan FREE');
         }
 
-        // Downgrade a FREE al final del período
-        const freePlan = await this.getPlanByType(PlanType.FREE);
-
         return this.prisma.subscription.update({
             where: { id: subscription.id },
             data: {
@@ -248,7 +244,7 @@ export class SubscriptionsService {
     }
 
     async notifyApproachingLimit(storeId: string) {
-        const { usage, subscription } = await this.getUsage(storeId);
+        const { usage } = await this.getUsage(storeId);
         const store = await this.prisma.store.findUnique({
             where: { id: storeId },
             select: { ownerId: true },

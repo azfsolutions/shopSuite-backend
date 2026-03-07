@@ -57,14 +57,13 @@ describe('BuyerAuthController', () => {
             phone: '+1234567890',
         };
 
-        it('should register a buyer and force globalRole to BUYER', async () => {
+        it('should register a buyer successfully', async () => {
             const mockResult = {
                 user: { id: 'user-123', email: 'buyer@test.com' },
                 session: { id: 'session-123' },
             };
 
             mockAuthService.api.signUpEmail.mockResolvedValue(mockResult);
-            mockPrismaService.user.update.mockResolvedValue({});
 
             const result = await controller.signup(validDto);
 
@@ -79,11 +78,6 @@ describe('BuyerAuthController', () => {
                     phone: '+1234567890',
                 },
             });
-            // Verify globalRole is forced to BUYER via Prisma update
-            expect(mockPrismaService.user.update).toHaveBeenCalledWith({
-                where: { id: 'user-123' },
-                data: { globalRole: 'BUYER' },
-            });
         });
 
         it('should not send globalRole in the signup body (input: false)', async () => {
@@ -92,7 +86,6 @@ describe('BuyerAuthController', () => {
                 session: { id: 'session-456' },
             };
             mockAuthService.api.signUpEmail.mockResolvedValue(mockResult);
-            mockPrismaService.user.update.mockResolvedValue({});
 
             await controller.signup(validDto);
 
@@ -123,7 +116,6 @@ describe('BuyerAuthController', () => {
                 session: { id: 'session-789' },
             };
             mockAuthService.api.signUpEmail.mockResolvedValue(mockResult);
-            mockPrismaService.user.update.mockResolvedValue({});
 
             await controller.signup(dtoWithoutPhone as any);
 

@@ -4,7 +4,6 @@ import {
     ExecutionContext,
     ForbiddenException,
     NotFoundException,
-    InternalServerErrorException,
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';

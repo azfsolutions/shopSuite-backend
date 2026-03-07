@@ -2,7 +2,6 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
-import { PrismaService } from '../src/database/prisma.service';
 
 /**
  * Role Enforcement E2E Tests
@@ -14,7 +13,6 @@ import { PrismaService } from '../src/database/prisma.service';
  */
 describe('Role Enforcement (e2e)', () => {
     let app: INestApplication;
-    let prisma: PrismaService;
 
     const timestamp = Date.now();
 
@@ -42,7 +40,6 @@ describe('Role Enforcement (e2e)', () => {
         }).compile();
 
         app = moduleFixture.createNestApplication();
-        prisma = moduleFixture.get<PrismaService>(PrismaService);
 
         app.useGlobalPipes(new ValidationPipe({
             whitelist: true,

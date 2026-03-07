@@ -1,6 +1,5 @@
 import {
     IsString,
-    IsNotEmpty,
     IsBoolean,
     IsOptional,
     IsInt,
@@ -9,9 +8,8 @@ import {
     Max,
     MaxLength,
     IsIn,
-    IsUrl,
 } from 'class-validator';
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 /**
  * DTO para crear un nuevo banner

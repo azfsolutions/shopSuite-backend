@@ -71,6 +71,7 @@ export type MockPrismaService = {
     subscription: MockModel;
     buyerAddress: MockModel;
     address: MockModel;
+    buyerUser: MockModel;
     session: MockModel;
     account: MockModel;
     $transaction: jest.Mock;
@@ -109,6 +110,7 @@ export function createMockPrismaService(): MockPrismaService {
         subscription: createMockModel(),
         buyerAddress: createMockModel(),
         address: createMockModel(),
+        buyerUser: createMockModel(),
         session: createMockModel(),
         account: createMockModel(),
         $transaction: jest.fn((cb) => cb ? cb(createMockPrismaService()) : Promise.resolve()),

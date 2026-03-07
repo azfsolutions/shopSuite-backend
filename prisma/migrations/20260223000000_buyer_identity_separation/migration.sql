@@ -26,8 +26,8 @@ DROP INDEX IF EXISTS "store_customer_profiles_userId_storeId_key";
 -- reference old User.id values which won't exist in the new buyer_users table
 DELETE FROM "store_customer_profiles";
 
--- Rename userId -> buyerUserId in customers (0 rows, safe)
-ALTER TABLE "customers" RENAME COLUMN "userId" TO "buyerUserId";
+-- Add buyerUserId to customers (column never existed, customers had no userId)
+ALTER TABLE "customers" ADD COLUMN "buyerUserId" TEXT;
 
 -- Rename userId -> buyerUserId in store_customer_profiles (now empty, safe)
 ALTER TABLE "store_customer_profiles" RENAME COLUMN "userId" TO "buyerUserId";
