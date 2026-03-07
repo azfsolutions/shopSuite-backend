@@ -49,13 +49,6 @@ jobs:
           --health-timeout 5s
           --health-retries 5
 
-    env:
-      DATABASE_URL: postgresql://ci:ci@localhost:5432/shopsuite_test
-      BETTER_AUTH_SECRET: ci-secret-not-for-production
-      BETTER_AUTH_URL: http://localhost:3001
-      FRONTEND_URL: http://localhost:3002
-      PORT: 3001
-
     steps:
       - uses: actions/checkout@v4
 
@@ -68,14 +61,27 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Prisma 5.22+ uses a WASM-based get-config validator that requires
+      # DATABASE_URL to be set at the step level (not just job level) to
+      # guarantee the value reaches the sandboxed WASM execution context.
       - name: Generate Prisma client
         run: npm run prisma:generate
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/shopsuite_test
 
       - name: Run migrations
         run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/shopsuite_test
 
       - name: Run unit tests
         run: npm test
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/shopsuite_test
+          BETTER_AUTH_SECRET: ci-secret-not-for-production
+          BETTER_AUTH_URL: http://localhost:3001
+          FRONTEND_URL: http://localhost:3002
+          PORT: 3001
 
   build:
     name: Build
