@@ -53,8 +53,7 @@ jobs:
 
       - name: Create .env for Prisma
         run: |
-          echo "DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder" > .env
-          cp .env prisma/.env
+          echo "DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder" > prisma/.env
 
       - name: Generate Prisma client
         run: npm run prisma:generate
@@ -87,8 +86,7 @@ jobs:
 
       - name: Create .env for Prisma
         run: |
-          echo "DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder" > .env
-          cp .env prisma/.env
+          echo "DATABASE_URL=postgresql://placeholder:placeholder@localhost:5432/placeholder" > prisma/.env
 
       - name: Generate Prisma client
         run: npm run prisma:generate
