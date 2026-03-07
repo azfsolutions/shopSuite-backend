@@ -82,6 +82,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: lint
 
+    # prisma generate (Prisma 5.22+) validates the schema with its WASM engine
+    # and requires DATABASE_URL to be non-empty even though no DB connection
+    # is made during generation. A placeholder URL is sufficient here.
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+
     steps:
       - uses: actions/checkout@v4
 
