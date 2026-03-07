@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BetterAuthService } from './better-auth.service';
 import { PrismaService } from '../../database/prisma.service';
+import { RedisService } from '../redis/redis.service';
 
 // Mock the auth factory to avoid importing better-auth (ESM)
 jest.mock('../../lib/auth', () => ({
@@ -26,11 +27,17 @@ describe('BetterAuthService', () => {
         $disconnect: jest.fn(),
     };
 
+    const mockRedisService = {
+        isAvailable: false,
+        getClient: jest.fn(),
+    };
+
     beforeEach(async () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 BetterAuthService,
                 { provide: PrismaService, useValue: mockPrismaService },
+                { provide: RedisService, useValue: mockRedisService },
             ],
         }).compile();
 
@@ -68,7 +75,7 @@ describe('BetterAuthService', () => {
             // eslint-disable-next-line @typescript-eslint/no-var-requires
             const { createAuthInstance } = require('../../lib/auth');
             service.auth;
-            expect(createAuthInstance).toHaveBeenCalledWith(mockPrismaService);
+            expect(createAuthInstance).toHaveBeenCalledWith(mockPrismaService, undefined);
         });
     });
 

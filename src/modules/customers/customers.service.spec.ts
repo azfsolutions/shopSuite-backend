@@ -65,11 +65,16 @@ describe('CustomersService', () => {
 
     describe('findById', () => {
         it('should return customer with orders', async () => {
-            const customer = createMockCustomer();
+            const customer = { ...createMockCustomer(), buyerUser: null, addresses: [] };
             prisma.customer.findFirst.mockResolvedValue(customer);
+            prisma.order.findMany.mockResolvedValue([]);
 
             const result = await service.findById('store-1', 'cust-1');
-            expect(result).toEqual(customer);
+
+            expect(result.id).toBe('cust-1');
+            expect(result.email).toBe('customer@test.com');
+            expect(result.addresses).toEqual([]);
+            expect(result.orders).toEqual([]);
         });
 
         it('should throw NotFoundException when not found', async () => {
