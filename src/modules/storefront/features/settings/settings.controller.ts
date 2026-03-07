@@ -17,7 +17,6 @@ import {
     ApiParam,
 } from '@nestjs/swagger';
 import { AuthGuard } from '../../../../core/guards';
-import { StorefrontService } from '../../core/storefront.service';
 import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 

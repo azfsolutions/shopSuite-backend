@@ -43,7 +43,7 @@ export class BuyerAuthController {
     @ApiOperation({ summary: 'Register a new buyer (globalRole forced to BUYER)' })
     async signup(@Body() dto: BuyerSignupDto) {
         try {
-            const result = await (this.authService.api.signUpEmail as Function)({
+            const result = await (this.authService.api.signUpEmail as (...args: any[]) => Promise<any>)({
                 body: {
                     email: dto.email,
                     password: dto.password,

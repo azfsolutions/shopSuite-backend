@@ -1,4 +1,4 @@
-import { ArgumentsHost, HttpStatus, HttpException, BadRequestException, NotFoundException } from '@nestjs/common';
+import { ArgumentsHost, HttpException, BadRequestException, NotFoundException } from '@nestjs/common';
 import { GlobalExceptionFilter } from './global-exception.filter';
 
 describe('GlobalExceptionFilter', () => {

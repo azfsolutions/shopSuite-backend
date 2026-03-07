@@ -137,7 +137,7 @@ export function createMockUser(overrides: Record<string, any> = {}) {
 export function createMockStoreCustomerProfile(overrides: Record<string, any> = {}) {
     return {
         id: 'profile-1',
-        userId: 'user-1',
+        buyerUserId: 'buyer-1',
         storeId: 'store-1',
         ordersCount: 2,
         totalSpent: 25000,

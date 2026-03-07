@@ -61,7 +61,7 @@ const makeCustomer = (overrides = {}) => ({
     id: 'cust-1',
     storeId: 'store-1',
     email: 'buyer@test.com',
-    userId: null,
+    buyerUserId: null,
     ordersCount: 0,
     totalSpent: new Decimal('0'),
     ...overrides,
@@ -166,25 +166,25 @@ describe('StorefrontOrdersService', () => {
                 status: 'PENDING',
             });
 
-            // Customer upserted with userId
+            // Customer upserted with buyerUserId
             expect(mockPrisma.customer.upsert).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    update: { userId: 'user-1' },
-                    create: expect.objectContaining({ userId: 'user-1' }),
+                    update: { buyerUserId: 'user-1' },
+                    create: expect.objectContaining({ buyerUserId: 'user-1' }),
                 }),
             );
 
             // StoreCustomerProfile upserted
             expect(mockPrisma.storeCustomerProfile.upsert).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    where: { userId_storeId: { userId: 'user-1', storeId: 'store-1' } },
+                    where: { buyerUserId_storeId: { buyerUserId: 'user-1', storeId: 'store-1' } },
                 }),
             );
 
             // StoreCustomerProfile stats updated
             expect(mockPrisma.storeCustomerProfile.update).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    where: { userId_storeId: { userId: 'user-1', storeId: 'store-1' } },
+                    where: { buyerUserId_storeId: { buyerUserId: 'user-1', storeId: 'store-1' } },
                     data: expect.objectContaining({ ordersCount: { increment: 1 } }),
                 }),
             );
@@ -204,11 +204,11 @@ describe('StorefrontOrdersService', () => {
 
             expect(result.orderNumber).toBe('ORD-2600001');
 
-            // Customer upserted without userId
+            // Customer upserted without buyerUserId
             expect(mockPrisma.customer.upsert).toHaveBeenCalledWith(
                 expect.objectContaining({
                     update: {},
-                    create: expect.objectContaining({ userId: null }),
+                    create: expect.objectContaining({ buyerUserId: null }),
                 }),
             );
 

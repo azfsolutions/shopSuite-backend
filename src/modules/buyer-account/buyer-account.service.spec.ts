@@ -4,11 +4,22 @@ import { BuyerAccountService } from './buyer-account.service';
 import { PrismaService } from '../../database/prisma.service';
 import { createMockPrismaService, MockPrismaService } from '../../test/prisma-mock.factory';
 import {
-    createMockUser,
     createMockStoreCustomerProfile,
     createMockBuyerAddress,
     createMockOrder,
 } from '../../test/test-helpers';
+
+// Mock BuyerUser shape returned by prisma.buyerUser.findUnique
+function createMockBuyerUser(overrides: Record<string, any> = {}) {
+    return {
+        id: 'buyer-1',
+        email: 'buyer@test.com',
+        firstName: 'Juan',
+        lastName: 'Pérez',
+        phone: '+595991234567',
+        ...overrides,
+    };
+}
 
 describe('BuyerAccountService', () => {
     let service: BuyerAccountService;
@@ -34,47 +45,38 @@ describe('BuyerAccountService', () => {
             const profile = createMockStoreCustomerProfile();
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(profile);
 
-            const result = await service.getOrCreateProfile('user-1', 'store-1');
+            const result = await service.getOrCreateProfile('buyer-1', 'store-1');
 
             expect(result).toEqual(profile);
             expect(prisma.storeCustomerProfile.findUnique).toHaveBeenCalledWith({
-                where: { userId_storeId: { userId: 'user-1', storeId: 'store-1' } },
+                where: { buyerUserId_storeId: { buyerUserId: 'buyer-1', storeId: 'store-1' } },
             });
             expect(prisma.storeCustomerProfile.create).not.toHaveBeenCalled();
         });
 
-        it('should create profile when not found', async () => {
-            const newProfile = createMockStoreCustomerProfile();
+        it('should return null when profile not found', async () => {
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(null);
-            prisma.storeCustomerProfile.create.mockResolvedValue(newProfile);
 
-            const result = await service.getOrCreateProfile('user-1', 'store-1');
+            const result = await service.getOrCreateProfile('buyer-1', 'store-1');
 
-            expect(result).toEqual(newProfile);
-            expect(prisma.storeCustomerProfile.create).toHaveBeenCalledWith({
-                data: { userId: 'user-1', storeId: 'store-1' },
-            });
+            expect(result).toBeNull();
+            expect(prisma.storeCustomerProfile.create).not.toHaveBeenCalled();
         });
     });
 
     // ─── GET PROFILE WITH USER ───────────────────────────────
     describe('getProfileWithUser', () => {
-        it('should return user data merged with store profile stats', async () => {
+        it('should return buyer user data merged with store profile stats', async () => {
             const profile = createMockStoreCustomerProfile({
                 ordersCount: 5,
                 totalSpent: 50000,
             });
-            const user = createMockUser({
-                email: 'buyer@test.com',
-                firstName: 'Juan',
-                lastName: 'Pérez',
-                phone: '+595991234567',
-            });
+            const buyerUser = createMockBuyerUser();
 
+            prisma.buyerUser.findUnique.mockResolvedValue(buyerUser);
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(profile);
-            prisma.user.findUnique.mockResolvedValue(user);
 
-            const result = await service.getProfileWithUser('user-1', 'store-1');
+            const result = await service.getProfileWithUser('buyer-1', 'store-1');
 
             expect(result.email).toBe('buyer@test.com');
             expect(result.firstName).toBe('Juan');
@@ -84,27 +86,33 @@ describe('BuyerAccountService', () => {
             expect(result.storeProfile!.totalSpent).toBe(50000);
         });
 
-        it('should auto-create profile if missing and still return data', async () => {
-            const profile = createMockStoreCustomerProfile();
-            const user = createMockUser();
+        it('should return storeProfile: null when profile is missing', async () => {
+            const buyerUser = createMockBuyerUser();
 
+            prisma.buyerUser.findUnique.mockResolvedValue(buyerUser);
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(null);
-            prisma.storeCustomerProfile.create.mockResolvedValue(profile);
-            prisma.user.findUnique.mockResolvedValue(user);
 
-            const result = await service.getProfileWithUser('user-1', 'store-1');
+            const result = await service.getProfileWithUser('buyer-1', 'store-1');
 
-            expect(result.storeProfile).toBeDefined();
-            expect(prisma.storeCustomerProfile.create).toHaveBeenCalled();
+            expect(result.storeProfile).toBeNull();
+            expect(prisma.storeCustomerProfile.create).not.toHaveBeenCalled();
         });
 
-        it('should select only necessary user fields', async () => {
+        it('should throw NotFoundException when buyer user not found', async () => {
+            prisma.buyerUser.findUnique.mockResolvedValue(null);
+
+            await expect(
+                service.getProfileWithUser('buyer-1', 'store-1'),
+            ).rejects.toThrow(NotFoundException);
+        });
+
+        it('should query buyerUser with selected fields', async () => {
+            prisma.buyerUser.findUnique.mockResolvedValue(createMockBuyerUser());
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(createMockStoreCustomerProfile());
-            prisma.user.findUnique.mockResolvedValue(createMockUser());
 
-            await service.getProfileWithUser('user-1', 'store-1');
+            await service.getProfileWithUser('buyer-1', 'store-1');
 
-            expect(prisma.user.findUnique).toHaveBeenCalledWith(
+            expect(prisma.buyerUser.findUnique).toHaveBeenCalledWith(
                 expect.objectContaining({
                     select: {
                         id: true,
@@ -120,74 +128,61 @@ describe('BuyerAccountService', () => {
 
     // ─── UPDATE PROFILE ──────────────────────────────────────
     describe('updateProfile', () => {
-        it('should update firstName and sync name field', async () => {
-            const currentUser = createMockUser({ firstName: 'Old', lastName: 'User' });
-            const updatedUser = createMockUser({ firstName: 'New', name: 'New User' });
+        it('should update firstName', async () => {
+            const updated = createMockBuyerUser({ firstName: 'New' });
+            prisma.buyerUser.update.mockResolvedValue(updated);
 
-            prisma.user.findUnique.mockResolvedValue(currentUser);
-            prisma.user.update.mockResolvedValue(updatedUser);
-
-            const result = await service.updateProfile('user-1', { firstName: 'New' });
+            const result = await service.updateProfile('buyer-1', { firstName: 'New' });
 
             expect(result.firstName).toBe('New');
-            expect(prisma.user.update).toHaveBeenCalledWith(
+            expect(prisma.buyerUser.update).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    data: expect.objectContaining({
-                        firstName: 'New',
-                        name: 'New User',
-                    }),
+                    where: { id: 'buyer-1' },
+                    data: { firstName: 'New' },
                 }),
             );
         });
 
-        it('should update lastName and sync name using existing firstName', async () => {
-            const currentUser = createMockUser({ firstName: 'Test', lastName: 'Old' });
-            prisma.user.findUnique.mockResolvedValue(currentUser);
-            prisma.user.update.mockResolvedValue(createMockUser({ lastName: 'Pérez' }));
+        it('should update lastName', async () => {
+            prisma.buyerUser.update.mockResolvedValue(createMockBuyerUser({ lastName: 'García' }));
 
-            await service.updateProfile('user-1', { lastName: 'Pérez' });
+            await service.updateProfile('buyer-1', { lastName: 'García' });
 
-            expect(prisma.user.update).toHaveBeenCalledWith(
+            expect(prisma.buyerUser.update).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    data: expect.objectContaining({
-                        lastName: 'Pérez',
-                        name: 'Test Pérez',
-                    }),
+                    data: { lastName: 'García' },
                 }),
             );
         });
 
-        it('should update phone without querying for current user', async () => {
-            prisma.user.update.mockResolvedValue(createMockUser({ phone: '+595991000000' }));
+        it('should update phone without querying current user', async () => {
+            prisma.buyerUser.update.mockResolvedValue(createMockBuyerUser({ phone: '+595991000000' }));
 
-            await service.updateProfile('user-1', { phone: '+595991000000' });
+            await service.updateProfile('buyer-1', { phone: '+595991000000' });
 
-            expect(prisma.user.findUnique).not.toHaveBeenCalled();
-            expect(prisma.user.update).toHaveBeenCalledWith(
+            expect(prisma.buyerUser.findUnique).not.toHaveBeenCalled();
+            expect(prisma.buyerUser.update).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: { phone: '+595991000000' },
                 }),
             );
         });
 
-        it('should handle all fields updated together', async () => {
-            const currentUser = createMockUser();
-            prisma.user.findUnique.mockResolvedValue(currentUser);
-            prisma.user.update.mockResolvedValue(createMockUser());
+        it('should update multiple fields at once', async () => {
+            prisma.buyerUser.update.mockResolvedValue(createMockBuyerUser());
 
-            await service.updateProfile('user-1', {
+            await service.updateProfile('buyer-1', {
                 firstName: 'Juan',
                 lastName: 'Pérez',
                 phone: '+595991000000',
             });
 
-            expect(prisma.user.update).toHaveBeenCalledWith(
+            expect(prisma.buyerUser.update).toHaveBeenCalledWith(
                 expect.objectContaining({
                     data: expect.objectContaining({
                         firstName: 'Juan',
                         lastName: 'Pérez',
                         phone: '+595991000000',
-                        name: 'Juan Pérez',
                     }),
                 }),
             );
@@ -196,30 +191,25 @@ describe('BuyerAccountService', () => {
 
     // ─── ADDRESSES — GET ─────────────────────────────────────
     describe('getAddresses', () => {
-        it('should return addresses ordered by default first, then by date', async () => {
-            const profile = createMockStoreCustomerProfile();
+        it('should return addresses from profile include', async () => {
             const addresses = [
                 createMockBuyerAddress({ isDefault: true }),
                 createMockBuyerAddress({ id: 'addr-2', isDefault: false }),
             ];
+            const profile = { ...createMockStoreCustomerProfile(), buyerAddresses: addresses };
 
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(profile);
-            prisma.buyerAddress.findMany.mockResolvedValue(addresses);
 
-            const result = await service.getAddresses('user-1', 'store-1');
+            const result = await service.getAddresses('buyer-1', 'store-1');
 
             expect(result).toHaveLength(2);
-            expect(prisma.buyerAddress.findMany).toHaveBeenCalledWith({
-                where: { profileId: profile.id },
-                orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
-            });
+            expect(prisma.buyerAddress.findMany).not.toHaveBeenCalled();
         });
 
-        it('should return empty array when no addresses', async () => {
-            prisma.storeCustomerProfile.findUnique.mockResolvedValue(createMockStoreCustomerProfile());
-            prisma.buyerAddress.findMany.mockResolvedValue([]);
+        it('should return empty array when no profile exists', async () => {
+            prisma.storeCustomerProfile.findUnique.mockResolvedValue(null);
 
-            const result = await service.getAddresses('user-1', 'store-1');
+            const result = await service.getAddresses('buyer-1', 'store-1');
 
             expect(result).toHaveLength(0);
         });
@@ -244,7 +234,7 @@ describe('BuyerAccountService', () => {
             prisma.buyerAddress.updateMany.mockResolvedValue({ count: 1 });
             prisma.buyerAddress.create.mockResolvedValue(createMockBuyerAddress());
 
-            await service.createAddress('user-1', 'store-1', addressDto);
+            await service.createAddress('buyer-1', 'store-1', addressDto);
 
             expect(prisma.buyerAddress.updateMany).toHaveBeenCalledWith({
                 where: { profileId: profile.id },
@@ -252,11 +242,11 @@ describe('BuyerAccountService', () => {
             });
         });
 
-        it('should NOT unset defaults when isDefault is false/undefined', async () => {
+        it('should NOT unset defaults when isDefault is false', async () => {
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(createMockStoreCustomerProfile());
             prisma.buyerAddress.create.mockResolvedValue(createMockBuyerAddress({ isDefault: false }));
 
-            await service.createAddress('user-1', 'store-1', { ...addressDto, isDefault: false });
+            await service.createAddress('buyer-1', 'store-1', { ...addressDto, isDefault: false });
 
             expect(prisma.buyerAddress.updateMany).not.toHaveBeenCalled();
         });
@@ -266,11 +256,19 @@ describe('BuyerAccountService', () => {
             prisma.storeCustomerProfile.findUnique.mockResolvedValue(profile);
             prisma.buyerAddress.create.mockResolvedValue(createMockBuyerAddress());
 
-            await service.createAddress('user-1', 'store-1', { ...addressDto, isDefault: false });
+            await service.createAddress('buyer-1', 'store-1', { ...addressDto, isDefault: false });
 
             expect(prisma.buyerAddress.create).toHaveBeenCalledWith({
                 data: expect.objectContaining({ profileId: 'profile-99' }),
             });
+        });
+
+        it('should throw NotFoundException when profile not found', async () => {
+            prisma.storeCustomerProfile.findUnique.mockResolvedValue(null);
+
+            await expect(
+                service.createAddress('buyer-1', 'store-1', addressDto),
+            ).rejects.toThrow(NotFoundException);
         });
     });
 
@@ -285,7 +283,7 @@ describe('BuyerAccountService', () => {
             prisma.buyerAddress.findFirst.mockResolvedValue(address);
             prisma.buyerAddress.update.mockResolvedValue(updated);
 
-            const result = await service.updateAddress('user-1', 'store-1', 'addr-1', { city: 'Encarnación' });
+            const result = await service.updateAddress('buyer-1', 'store-1', 'addr-1', { city: 'Encarnación' });
 
             expect(result.city).toBe('Encarnación');
         });
@@ -295,7 +293,7 @@ describe('BuyerAccountService', () => {
             prisma.buyerAddress.findFirst.mockResolvedValue(null);
 
             await expect(
-                service.updateAddress('user-1', 'store-1', 'nonexistent', { city: 'X' }),
+                service.updateAddress('buyer-1', 'store-1', 'nonexistent', { city: 'X' }),
             ).rejects.toThrow(NotFoundException);
         });
 
@@ -308,7 +306,7 @@ describe('BuyerAccountService', () => {
             prisma.buyerAddress.updateMany.mockResolvedValue({ count: 1 });
             prisma.buyerAddress.update.mockResolvedValue({ ...address, isDefault: true });
 
-            await service.updateAddress('user-1', 'store-1', 'addr-2', { isDefault: true });
+            await service.updateAddress('buyer-1', 'store-1', 'addr-2', { isDefault: true });
 
             expect(prisma.buyerAddress.updateMany).toHaveBeenCalledWith({
                 where: { profileId: profile.id, id: { not: 'addr-2' } },
@@ -327,7 +325,7 @@ describe('BuyerAccountService', () => {
             prisma.buyerAddress.findFirst.mockResolvedValue(address);
             prisma.buyerAddress.delete.mockResolvedValue(address);
 
-            const result = await service.deleteAddress('user-1', 'store-1', 'addr-1');
+            const result = await service.deleteAddress('buyer-1', 'store-1', 'addr-1');
 
             expect(result.message).toBe('Dirección eliminada');
             expect(prisma.buyerAddress.delete).toHaveBeenCalledWith({
@@ -340,7 +338,7 @@ describe('BuyerAccountService', () => {
             prisma.buyerAddress.findFirst.mockResolvedValue(null);
 
             await expect(
-                service.deleteAddress('user-1', 'store-1', 'nonexistent'),
+                service.deleteAddress('buyer-1', 'store-1', 'nonexistent'),
             ).rejects.toThrow(NotFoundException);
         });
     });
@@ -348,21 +346,19 @@ describe('BuyerAccountService', () => {
     // ─── ORDERS — LIST ───────────────────────────────────────
     describe('getOrders', () => {
         it('should return paginated orders with itemsCount and pagination meta', async () => {
-            const profile = createMockStoreCustomerProfile();
+            const customer = { id: 'cust-1', email: 'buyer@test.com', storeId: 'store-1', buyerUserId: 'buyer-1' };
             const orders = [
                 { ...createMockOrder(), total: 15000, items: [{ id: 'i1' }, { id: 'i2' }] },
             ];
 
-            prisma.storeCustomerProfile.findUnique.mockResolvedValue(profile);
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findMany.mockResolvedValue(orders);
             prisma.order.count.mockResolvedValue(1);
 
-            const result = await service.getOrders('user-1', 'store-1', 1, 10);
+            const result = await service.getOrders('buyer-1', 'store-1', 1, 10);
 
             expect(result.orders).toHaveLength(1);
             expect(result.orders[0].itemsCount).toBe(2);
-            expect(result.orders[0].total).toBe(15000);
             expect(result.pagination).toEqual({
                 page: 1,
                 limit: 10,
@@ -371,13 +367,23 @@ describe('BuyerAccountService', () => {
             });
         });
 
+        it('should return empty orders when no customer record exists', async () => {
+            prisma.customer.findFirst.mockResolvedValue(null);
+
+            const result = await service.getOrders('buyer-1', 'store-1', 1, 10);
+
+            expect(result.orders).toEqual([]);
+            expect(result.pagination.total).toBe(0);
+            expect(prisma.order.findMany).not.toHaveBeenCalled();
+        });
+
         it('should calculate correct skip/take for page 2', async () => {
-            prisma.storeCustomerProfile.findUnique.mockResolvedValue(createMockStoreCustomerProfile());
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+            const customer = { id: 'cust-1', email: 'buyer@test.com' };
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findMany.mockResolvedValue([]);
             prisma.order.count.mockResolvedValue(15);
 
-            const result = await service.getOrders('user-1', 'store-1', 2, 10);
+            const result = await service.getOrders('buyer-1', 'store-1', 2, 10);
 
             expect(result.pagination.totalPages).toBe(2);
             expect(prisma.order.findMany).toHaveBeenCalledWith(
@@ -385,13 +391,13 @@ describe('BuyerAccountService', () => {
             );
         });
 
-        it('should filter by storeId and customerEmail', async () => {
-            prisma.storeCustomerProfile.findUnique.mockResolvedValue(createMockStoreCustomerProfile());
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+        it('should filter orders by storeId and customerEmail', async () => {
+            const customer = { id: 'cust-1', email: 'buyer@test.com' };
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findMany.mockResolvedValue([]);
             prisma.order.count.mockResolvedValue(0);
 
-            await service.getOrders('user-1', 'store-1');
+            await service.getOrders('buyer-1', 'store-1');
 
             expect(prisma.order.findMany).toHaveBeenCalledWith(
                 expect.objectContaining({
@@ -438,10 +444,11 @@ describe('BuyerAccountService', () => {
         };
 
         it('should return formatted order detail', async () => {
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+            const customer = { id: 'cust-1', email: 'buyer@test.com' };
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findFirst.mockResolvedValue(mockOrderDetail);
 
-            const result = await service.getOrderDetail('user-1', 'store-1', 'order-1');
+            const result = await service.getOrderDetail('buyer-1', 'store-1', 'order-1');
 
             expect(result.orderNumber).toBe('ORD-001');
             expect(result.items).toHaveLength(1);
@@ -450,12 +457,21 @@ describe('BuyerAccountService', () => {
             expect(result.total).toBe(16000);
         });
 
+        it('should throw NotFoundException when customer not found', async () => {
+            prisma.customer.findFirst.mockResolvedValue(null);
+
+            await expect(
+                service.getOrderDetail('buyer-1', 'store-1', 'order-1'),
+            ).rejects.toThrow(NotFoundException);
+        });
+
         it('should throw NotFoundException when order not found', async () => {
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+            const customer = { id: 'cust-1', email: 'buyer@test.com' };
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findFirst.mockResolvedValue(null);
 
             await expect(
-                service.getOrderDetail('user-1', 'store-1', 'nonexistent'),
+                service.getOrderDetail('buyer-1', 'store-1', 'nonexistent'),
             ).rejects.toThrow(NotFoundException);
         });
 
@@ -473,19 +489,21 @@ describe('BuyerAccountService', () => {
                 }],
             };
 
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+            const customer = { id: 'cust-1', email: 'buyer@test.com' };
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findFirst.mockResolvedValue(orderNoImg);
 
-            const result = await service.getOrderDetail('user-1', 'store-1', 'order-1');
+            const result = await service.getOrderDetail('buyer-1', 'store-1', 'order-1');
 
             expect(result.items[0].image).toBe('https://example.com/product.jpg');
         });
 
         it('should filter order by storeId and customerEmail', async () => {
-            prisma.user.findUnique.mockResolvedValue(createMockUser({ email: 'buyer@test.com' }));
+            const customer = { id: 'cust-1', email: 'buyer@test.com' };
+            prisma.customer.findFirst.mockResolvedValue(customer);
             prisma.order.findFirst.mockResolvedValue(mockOrderDetail);
 
-            await service.getOrderDetail('user-1', 'store-1', 'order-1');
+            await service.getOrderDetail('buyer-1', 'store-1', 'order-1');
 
             expect(prisma.order.findFirst).toHaveBeenCalledWith(
                 expect.objectContaining({

@@ -4,9 +4,6 @@ import {
     ArgumentsHost,
     HttpStatus,
     Logger,
-    ConflictException,
-    NotFoundException,
-    BadRequestException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Response } from 'express';
