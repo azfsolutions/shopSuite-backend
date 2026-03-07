@@ -213,6 +213,11 @@ export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
         advanced: {
             useSecureCookies: isProduction,
             cookiePrefix: 'shopsuite',
+            // Cross-domain support: when frontend (Vercel) and backend (Railway) are on
+            // different eTLD+1 domains, cookies need SameSite=None;Secure to be sent.
+            // Once you add a custom domain with subdomains (api.domain.com + app.domain.com),
+            // replace this with: crossSubdomainCookies: { enabled: true, domain: '.domain.com' }
+            crossSubdomainCookies: isProduction ? { enabled: true } : undefined,
         },
 
         // ── RATE LIMITING ─────────────────────────────────────

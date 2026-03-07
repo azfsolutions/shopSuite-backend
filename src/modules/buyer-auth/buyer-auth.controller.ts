@@ -20,10 +20,13 @@ const COOKIE_NAME = 'buyer_token';
 const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 function setBuyerCookie(res: Response, token: string): void {
+    const isProd = process.env.NODE_ENV === 'production';
     res.cookie(COOKIE_NAME, token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        secure: isProd,
+        // SameSite=None required for cross-domain deployments (Railway + Vercel).
+        // SameSite=Lax works only when frontend and backend share the same eTLD+1.
+        sameSite: isProd ? 'none' : 'lax',
         maxAge: COOKIE_MAX_AGE_MS,
         path: '/',
     });
