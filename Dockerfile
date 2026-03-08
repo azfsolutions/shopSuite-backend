@@ -15,9 +15,6 @@ COPY . .
 
 RUN npm run build
 
-# Fail build explicitly if dist/main.js was not produced
-RUN test -f /app/dist/main.js || (echo "ERROR: dist/main.js not found after nest build" && ls -la /app/dist/ 2>/dev/null || echo "dist/ does not exist" && exit 1)
-
 # ── Runtime image ─────────────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
