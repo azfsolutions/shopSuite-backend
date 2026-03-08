@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import * as sanitizeHtml from 'sanitize-html';
+import sanitizeHtml from 'sanitize-html';
 
 // ============================================================
 // 🛡️ SANITIZATION SERVICE - PREVENCIÓN DE XSS
@@ -33,7 +33,7 @@ export class SanitizationService {
         return sanitizeHtml(input, {
             allowedTags: [],         // No permite NINGÚN tag HTML
             allowedAttributes: {},    // No permite atributos
-            textFilter: (text) => text.trim(), // Limpia espacios extra
+            textFilter: (text: string) => text.trim(), // Limpia espacios extra
         });
     }
 
