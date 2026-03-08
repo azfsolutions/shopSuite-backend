@@ -5,6 +5,8 @@ WORKDIR /app
 COPY package*.json ./
 COPY prisma ./prisma/
 
+RUN apk add --no-cache openssl
+
 RUN npm ci
 
 # Prisma generate needs a valid DATABASE_URL format (no real connection during build)
@@ -24,6 +26,8 @@ ENV NODE_ENV=production
 
 COPY package*.json ./
 COPY prisma ./prisma/
+
+RUN apk add --no-cache openssl
 
 RUN npm ci --omit=dev
 
