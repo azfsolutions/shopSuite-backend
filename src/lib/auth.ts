@@ -186,6 +186,8 @@ export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
                 await sendVerificationEmail(user, url);
             },
             sendOnSignUp: true,
+            // After clicking the link, redirect to frontend login page (not backend /)
+            callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:3002'}/login?verified=true`,
         },
 
         // ── SESSION ───────────────────────────────────────────
