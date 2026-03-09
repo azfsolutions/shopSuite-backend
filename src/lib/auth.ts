@@ -121,7 +121,7 @@ async function sendVerificationEmail(
     const { Resend } = await import('resend');
     const resend = new Resend(apiKey);
 
-    await resend.emails.send({
+    const { data, error } = await resend.emails.send({
         from,
         to: user.email,
         subject: 'Verifica tu cuenta en ShopSuite',
@@ -141,6 +141,12 @@ async function sendVerificationEmail(
             </div>
         `,
     });
+
+    if (error) {
+        console.error(`[BetterAuth] Resend error for ${user.email}:`, JSON.stringify(error));
+    } else {
+        console.log(`[BetterAuth] Verification email sent to ${user.email}, id: ${data?.id}`);
+    }
 }
 
 // ============================================================
