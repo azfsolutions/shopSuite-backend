@@ -2,6 +2,7 @@ import { Global, Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { SanitizationService } from './services/sanitization.service';
 import { LoggerService } from './services/logger.service';
 import { HealthController } from './controllers/health.controller';
+import { AppController } from './controllers/app.controller';
 import { RequestLoggerMiddleware } from './middleware/request-logger.middleware';
 
 // ============================================================
@@ -22,7 +23,7 @@ import { RequestLoggerMiddleware } from './middleware/request-logger.middleware'
 
 @Global()
 @Module({
-    controllers: [HealthController],
+    controllers: [HealthController, AppController],
     providers: [
         SanitizationService,
         LoggerService,
