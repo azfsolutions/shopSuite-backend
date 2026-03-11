@@ -105,7 +105,7 @@ async function resolveTrustedOrigins(
 // If RESEND_API_KEY is not set, logs the URL (dev-friendly).
 // ============================================================
 async function sendVerificationEmail(
-    user: { email: string; name: string },
+    user: { email: string; name: string; firstName?: string },
     url: string,
 ): Promise<void> {
     const apiKey = process.env.RESEND_API_KEY;
@@ -121,25 +121,108 @@ async function sendVerificationEmail(
     const { Resend } = await import('resend');
     const resend = new Resend(apiKey);
 
+    const displayName = user.firstName || user.name || 'allí';
+
+    const html = `
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background-color:#f0f5ff;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f5ff;padding:40px 16px;">
+    <tr><td align="center">
+      <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,52,242,0.08);">
+
+        <!-- HEADER -->
+        <tr>
+          <td align="center" style="padding:28px 40px;border-bottom:1px solid #e8f0fe;">
+            <table cellpadding="0" cellspacing="0"><tr>
+              <td style="background:linear-gradient(135deg,#001b7a,#0034f2);border-radius:12px;width:44px;height:44px;text-align:center;vertical-align:middle;">
+                <span style="color:#ffffff;font-size:22px;font-weight:700;line-height:44px;display:block;">S</span>
+              </td>
+              <td style="padding-left:12px;vertical-align:middle;">
+                <span style="font-size:22px;font-weight:700;color:#0D0C54;letter-spacing:-0.5px;">ShopSuite</span>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+
+        <!-- HERO -->
+        <tr>
+          <td style="background-color:#F0F5FF;padding:48px 40px;text-align:center;">
+            <h1 style="margin:0 0 12px;font-size:28px;font-weight:700;color:#0D0C54;letter-spacing:-0.5px;">
+              ¡Bienvenido, ${displayName}! 👋
+            </h1>
+            <p style="margin:0 0 32px;font-size:16px;color:#40406A;line-height:1.6;">
+              Tu cuenta de ShopSuite está casi lista.<br>
+              Haz clic en el botón para activarla.
+            </p>
+            <a href="${url}" style="display:inline-block;background:linear-gradient(135deg,#001b7a,#0034f2);color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;padding:16px 40px;border-radius:10px;letter-spacing:0.2px;">
+              Verificar mi cuenta →
+            </a>
+            <p style="margin:20px 0 0;font-size:13px;color:#94a3b8;">El enlace expira en 24 horas</p>
+          </td>
+        </tr>
+
+        <!-- STEPS -->
+        <tr>
+          <td style="padding:40px;background-color:#ffffff;">
+            <h2 style="margin:0 0 28px;font-size:18px;font-weight:700;color:#0D0C54;text-align:center;">¿Qué sigue?</h2>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
+              <td width="44" valign="top">
+                <div style="width:44px;height:44px;background-color:#EFF6FF;border-radius:10px;text-align:center;line-height:44px;font-size:22px;">🏪</div>
+              </td>
+              <td style="padding-left:16px;vertical-align:middle;">
+                <p style="margin:0;font-size:15px;font-weight:600;color:#0D0C54;">Crea tu tienda</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#40406A;">Configura tu logo, nombre y URL personalizada</p>
+              </td>
+            </tr></table>
+
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;"><tr>
+              <td width="44" valign="top">
+                <div style="width:44px;height:44px;background-color:#EFF6FF;border-radius:10px;text-align:center;line-height:44px;font-size:22px;">📦</div>
+              </td>
+              <td style="padding-left:16px;vertical-align:middle;">
+                <p style="margin:0;font-size:15px;font-weight:600;color:#0D0C54;">Agrega tus productos</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#40406A;">Sube fotos, precios y variantes de tu catálogo</p>
+              </td>
+            </tr></table>
+
+            <table width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td width="44" valign="top">
+                <div style="width:44px;height:44px;background-color:#EFF6FF;border-radius:10px;text-align:center;line-height:44px;font-size:22px;">🚀</div>
+              </td>
+              <td style="padding-left:16px;vertical-align:middle;">
+                <p style="margin:0;font-size:15px;font-weight:600;color:#0D0C54;">Empieza a vender</p>
+                <p style="margin:4px 0 0;font-size:14px;color:#40406A;">Comparte tu tienda y recibe tus primeros pedidos</p>
+              </td>
+            </tr></table>
+          </td>
+        </tr>
+
+        <!-- FOOTER -->
+        <tr>
+          <td style="background-color:#0D0C54;padding:32px 40px;text-align:center;">
+            <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#ffffff;">ShopSuite</p>
+            <p style="margin:0 0 16px;font-size:12px;color:#64748b;">azfsolutions.com</p>
+            <p style="margin:0;font-size:12px;color:#64748b;line-height:1.8;">
+              Si no creaste esta cuenta, ignora este email.<br>
+              Este mensaje fue enviado a ${user.email}
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+
     const { data, error } = await resend.emails.send({
         from,
         to: user.email,
-        subject: 'Verifica tu cuenta en ShopSuite',
-        html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
-                <h2 style="color:#1e1b4b">Bienvenido a ShopSuite</h2>
-                <p style="color:#374151">Haz clic en el botón para activar tu cuenta:</p>
-                <a href="${url}"
-                   style="display:inline-block;background:#6366f1;color:white;padding:12px 28px;
-                          border-radius:8px;text-decoration:none;font-weight:600;margin:16px 0">
-                    Verificar cuenta
-                </a>
-                <p style="color:#9ca3af;font-size:14px;margin-top:24px">
-                    El enlace expira en 24 horas.<br>
-                    Si no creaste esta cuenta, ignora este email.
-                </p>
-            </div>
-        `,
+        subject: `¡Bienvenido a ShopSuite, ${displayName}! Activa tu cuenta`,
+        html,
     });
 
     if (error) {
@@ -173,6 +256,14 @@ export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
         // Sessions + rate limit counters live in Redis.
         // storeSessionInDatabase: true keeps PG as backup.
         ...(secondaryStorage && { secondaryStorage }),
+
+        // ── SOCIAL PROVIDERS ──────────────────────────────────
+        socialProviders: {
+            google: {
+                clientId: process.env.GOOGLE_CLIENT_ID as string,
+                clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
+            },
+        },
 
         // ── EMAIL & PASSWORD ──────────────────────────────────
         emailAndPassword: {
