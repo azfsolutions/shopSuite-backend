@@ -316,7 +316,12 @@ export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
             // different eTLD+1 domains, cookies need SameSite=None;Secure to be sent.
             // Once you add a custom domain with subdomains (api.domain.com + app.domain.com),
             // replace this with: crossSubdomainCookies: { enabled: true, domain: '.domain.com' }
-            crossSubdomainCookies: isProduction ? { enabled: true } : undefined,
+            // Domain=.azfsolutions.com lets the cookie be sent on navigation to
+            // shopsuite.azfsolutions.com (frontend), so the Next.js middleware
+            // can read the session and avoid the /dashboard→/login redirect loop.
+            crossSubdomainCookies: isProduction
+                ? { enabled: true, domain: '.azfsolutions.com' }
+                : undefined,
         },
 
         // ── RATE LIMITING ─────────────────────────────────────

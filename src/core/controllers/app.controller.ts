@@ -3,9 +3,9 @@ import { Public } from '../decorators';
 
 // ============================================================
 // ROOT REDIRECT CONTROLLER
-// Handles GET / — Better Auth redirects here on auth errors
-// (e.g., TOKEN_EXPIRED). We forward to the frontend error page
-// so the user sees a proper UI instead of a raw JSON 404.
+// Better Auth redirects to baseURL paths (/, /login) on auth
+// events (token expired, post-verification). We forward these
+// to the correct frontend URLs so the user sees proper UI.
 // ============================================================
 @Controller()
 export class AppController {
@@ -22,7 +22,18 @@ export class AppController {
             };
         }
 
-        // Default: redirect to health check for API consumers
         return { url: '/health', statusCode: 302 };
+    }
+
+    @Public()
+    @Get('login')
+    @Redirect()
+    handleLogin(@Query() query: Record<string, string>) {
+        const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3002';
+        const params = new URLSearchParams(query).toString();
+        return {
+            url: `${frontendUrl}/login${params ? '?' + params : ''}`,
+            statusCode: 302,
+        };
     }
 }
