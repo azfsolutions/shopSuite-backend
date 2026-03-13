@@ -233,6 +233,58 @@ async function sendVerificationEmail(
 }
 
 // ============================================================
+// SHARED PARENT DOMAIN DETECTION
+// Determines if backend and frontend share a common eTLD+1
+// (e.g., api.azfsolutions.com + shopsuite.azfsolutions.com).
+// When they do, we set Domain=.azfsolutions.com so cookies
+// are visible to both services (including Next.js middleware).
+// When they don't (e.g., railway.app + vercel.app), we skip
+// the Domain attribute and rely on SameSite=None;Secure for
+// cross-origin fetch requests.
+// ============================================================
+function getSharedParentDomain(): string | undefined {
+    const backendUrl = process.env.BETTER_AUTH_URL;
+    const frontendUrl = process.env.FRONTEND_URL;
+
+    if (!backendUrl || !frontendUrl) return undefined;
+
+    try {
+        const backendHost = new URL(backendUrl).hostname;
+        const frontendHost = new URL(frontendUrl).hostname;
+
+        if (backendHost === 'localhost' || frontendHost === 'localhost') return undefined;
+
+        // Same hostname = proxy setup (BETTER_AUTH_URL = FRONTEND_URL).
+        // No cross-subdomain cookies needed — SameSite=Lax works.
+        if (backendHost === frontendHost) return undefined;
+
+        const backendParts = backendHost.split('.');
+        const frontendParts = frontendHost.split('.');
+
+        if (backendParts.length < 2 || frontendParts.length < 2) return undefined;
+
+        // Compare eTLD+1 (simplified: last 2 labels)
+        const backendParent = backendParts.slice(-2).join('.');
+        const frontendParent = frontendParts.slice(-2).join('.');
+
+        // Exclude PaaS domains — setting Domain=.railway.app would leak
+        // cookies to every tenant on the platform.
+        const paasDomains = [
+            'railway.app', 'vercel.app', 'herokuapp.com',
+            'netlify.app', 'onrender.com', 'fly.dev',
+        ];
+
+        if (backendParent === frontendParent && !paasDomains.includes(backendParent)) {
+            return `.${backendParent}`;
+        }
+
+        return undefined;
+    } catch {
+        return undefined;
+    }
+}
+
+// ============================================================
 // CREATE AUTH INSTANCE
 // Called once by BetterAuthService (lazy singleton).
 // Redis is optional — auth is fully functional without it.
@@ -240,6 +292,7 @@ async function sendVerificationEmail(
 export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
     const isProduction = process.env.NODE_ENV === 'production';
     const secondaryStorage = redis ? buildSecondaryStorage(redis) : undefined;
+    const sharedDomain = isProduction ? getSharedParentDomain() : undefined;
 
     return betterAuth({
         appName: 'ShopSuite',
@@ -309,18 +362,21 @@ export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
         },
 
         // ── SECURITY ──────────────────────────────────────────
+        // Cookie strategy adapts automatically:
+        //
+        // PROXY (BETTER_AUTH_URL = FRONTEND_URL, same hostname):
+        //   → No crossSubdomainCookies, defaults to SameSite=Lax
+        //   → Cookies scoped to frontend hostname (via proxy)
+        //   → Same-origin: no CORS needed, middleware reads cookies directly
+        //
+        // CROSS-SUBDOMAIN (e.g., api.azf.com + app.azf.com):
+        //   → Domain=.azfsolutions.com, SameSite=None, Secure
+        //   → Cookies visible to both backend AND frontend
         advanced: {
             useSecureCookies: isProduction,
             cookiePrefix: 'shopsuite',
-            // Cross-domain support: when frontend (Vercel) and backend (Railway) are on
-            // different eTLD+1 domains, cookies need SameSite=None;Secure to be sent.
-            // Once you add a custom domain with subdomains (api.domain.com + app.domain.com),
-            // replace this with: crossSubdomainCookies: { enabled: true, domain: '.domain.com' }
-            // Domain=.azfsolutions.com lets the cookie be sent on navigation to
-            // shopsuite.azfsolutions.com (frontend), so the Next.js middleware
-            // can read the session and avoid the /dashboard→/login redirect loop.
-            crossSubdomainCookies: isProduction
-                ? { enabled: true, domain: '.azfsolutions.com' }
+            crossSubdomainCookies: isProduction && sharedDomain
+                ? { enabled: true, domain: sharedDomain }
                 : undefined,
         },
 
