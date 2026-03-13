@@ -24,9 +24,9 @@ function setBuyerCookie(res: Response, token: string): void {
     res.cookie(COOKIE_NAME, token, {
         httpOnly: true,
         secure: isProd,
-        // SameSite=None required for cross-domain deployments (Railway + Vercel).
-        // SameSite=Lax works only when frontend and backend share the same eTLD+1.
-        sameSite: isProd ? 'none' : 'lax',
+        // SameSite=Lax: all requests go through Next.js proxy (same-origin).
+        // No cross-domain cookies needed.
+        sameSite: 'lax',
         maxAge: COOKIE_MAX_AGE_MS,
         path: '/',
     });
