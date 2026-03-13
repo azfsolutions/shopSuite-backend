@@ -254,6 +254,10 @@ function getSharedParentDomain(): string | undefined {
 
         if (backendHost === 'localhost' || frontendHost === 'localhost') return undefined;
 
+        // Same hostname = proxy setup (BETTER_AUTH_URL = FRONTEND_URL).
+        // No cross-subdomain cookies needed — SameSite=Lax works.
+        if (backendHost === frontendHost) return undefined;
+
         const backendParts = backendHost.split('.');
         const frontendParts = frontendHost.split('.');
 
@@ -358,24 +362,21 @@ export function createAuthInstance(prismaClient: PrismaClient, redis?: Redis) {
         },
 
         // ── SECURITY ──────────────────────────────────────────
-        // Cookie strategy adapts automatically to the domain setup:
+        // Cookie strategy adapts automatically:
         //
-        // SAME eTLD+1 (e.g., api.azfsolutions.com + shopsuite.azfsolutions.com):
+        // PROXY (BETTER_AUTH_URL = FRONTEND_URL, same hostname):
+        //   → No crossSubdomainCookies, defaults to SameSite=Lax
+        //   → Cookies scoped to frontend hostname (via proxy)
+        //   → Same-origin: no CORS needed, middleware reads cookies directly
+        //
+        // CROSS-SUBDOMAIN (e.g., api.azf.com + app.azf.com):
         //   → Domain=.azfsolutions.com, SameSite=None, Secure
-        //   → Cookies visible to both backend AND frontend (middleware works)
-        //
-        // DIFFERENT eTLD+1 (e.g., *.railway.app + *.vercel.app):
-        //   → No Domain attribute, SameSite=None, Secure
-        //   → Cookies scoped to backend hostname
-        //   → Cross-origin fetch with credentials still sends them
-        //   → Middleware falls through; DashboardProvider validates client-side
+        //   → Cookies visible to both backend AND frontend
         advanced: {
             useSecureCookies: isProduction,
             cookiePrefix: 'shopsuite',
-            crossSubdomainCookies: isProduction
-                ? sharedDomain
-                    ? { enabled: true, domain: sharedDomain }
-                    : { enabled: true }
+            crossSubdomainCookies: isProduction && sharedDomain
+                ? { enabled: true, domain: sharedDomain }
                 : undefined,
         },
 
