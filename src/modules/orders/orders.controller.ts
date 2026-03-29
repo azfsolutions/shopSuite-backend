@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Param, Query, Body, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
+import { UpdateOrderStatusDto } from './dto';
 import { AuthGuard, StoreAccessGuard, GlobalRoleGuard } from '../../core/guards';
 import { CurrentUser, RequireGlobalRole } from '../../core/decorators';
 
@@ -13,29 +14,32 @@ export class OrdersController {
     constructor(private readonly ordersService: OrdersService) { }
 
     @Get()
+    @ApiOperation({ summary: 'Get all orders for store' })
     async findAll(
         @Param('storeId') storeId: string,
         @Query('status') status?: string,
-        @Query('page') page?: number
+        @Query('page') page?: number,
     ) {
         return this.ordersService.findAll(storeId, status, page);
     }
 
     @Get(':orderId')
+    @ApiOperation({ summary: 'Get order by ID' })
     async findById(
         @Param('storeId') storeId: string,
-        @Param('orderId') orderId: string
+        @Param('orderId') orderId: string,
     ) {
         return this.ordersService.findById(storeId, orderId);
     }
 
     @Patch(':orderId/status')
+    @ApiOperation({ summary: 'Update order status' })
     async updateStatus(
         @Param('storeId') storeId: string,
         @Param('orderId') orderId: string,
-        @Body('status') status: string,
+        @Body() dto: UpdateOrderStatusDto,
         @CurrentUser('id') userId: string,
     ) {
-        return this.ordersService.updateStatus(storeId, orderId, status, userId);
+        return this.ordersService.updateStatus(storeId, orderId, dto.status, userId);
     }
 }

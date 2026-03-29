@@ -17,6 +17,7 @@ export class CategoriesService {
                 _count: { select: { products: true } },
             },
             orderBy: { position: 'asc' },
+            take: 200,
         });
     }
 

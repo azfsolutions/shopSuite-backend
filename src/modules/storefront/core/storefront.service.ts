@@ -1,11 +1,26 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service';
+import { RedisService } from '../../redis/redis.service';
 
 @Injectable()
 export class StorefrontService {
     private readonly logger = new Logger(StorefrontService.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly redis: RedisService,
+    ) { }
+
+    private async getFromCache<T>(key: string): Promise<T | null> {
+        if (!this.redis.isAvailable) return null;
+        const cached = await this.redis.get(key);
+        return cached ? JSON.parse(cached) : null;
+    }
+
+    private async setCache(key: string, data: unknown, ttlSeconds: number): Promise<void> {
+        if (!this.redis.isAvailable) return;
+        await this.redis.set(key, JSON.stringify(data), ttlSeconds);
+    }
 
     async getStoreBySlug(slug: string) {
         const store = await this.prisma.store.findUnique({
@@ -40,9 +55,17 @@ export class StorefrontService {
     }
 
     async getCategories(storeId: string) {
-        return this.prisma.category.findMany({
+        const cacheKey = `sf:categories:${storeId}`;
+        const cached = await this.getFromCache<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const categories = await this.prisma.category.findMany({
             where: { storeId, isActive: true, deletedAt: null, parentId: null },
+            take: 100,
         });
+
+        await this.setCache(cacheKey, categories, 3600); // 1hr
+        return categories;
     }
 
     async getProducts(storeId: string, categorySlug?: string, page?: any, limit?: any) {
@@ -226,7 +249,11 @@ export class StorefrontService {
      * Obtener benefits activos de una tienda
      */
     async getActiveBenefits(storeId: string) {
-        return this.prisma.storeBenefit.findMany({
+        const cacheKey = `sf:benefits:${storeId}`;
+        const cached = await this.getFromCache<any[]>(cacheKey);
+        if (cached) return cached;
+
+        const benefits = await this.prisma.storeBenefit.findMany({
             where: { storeId, isActive: true },
             orderBy: { order: 'asc' },
             select: {
@@ -236,13 +263,21 @@ export class StorefrontService {
                 description: true,
                 order: true,
             },
+            take: 50,
         });
+
+        await this.setCache(cacheKey, benefits, 86400); // 24hr
+        return benefits;
     }
 
     /**
      * Obtener settings públicos del storefront (solo lo necesario para el frontend)
      */
     async getPublicSettings(storeId: string) {
+        const cacheKey = `sf:settings:${storeId}`;
+        const cached = await this.getFromCache(cacheKey);
+        if (cached) return cached;
+
         const settings = await this.prisma.storeSettings.findUnique({
             where: { storeId },
             select: {
@@ -264,7 +299,7 @@ export class StorefrontService {
 
         if (!settings) {
             // Return defaults if no settings exist
-            return {
+            const defaults = {
                 enableHeroSlider: true,
                 enableCategoryGrid: true,
                 enableFlashSales: true,
@@ -279,8 +314,11 @@ export class StorefrontService {
                 primaryColorCustom: null,
                 accentColorCustom: null,
             };
+            await this.setCache(cacheKey, defaults, 86400);
+            return defaults;
         }
 
+        await this.setCache(cacheKey, settings, 86400); // 24hr
         return settings;
     }
 
@@ -288,11 +326,16 @@ export class StorefrontService {
      * Obtener banners activos
      */
     async getActiveBanners(storeId: string) {
+        const cacheKey = `sf:banners:${storeId}`;
+        const cached = await this.getFromCache<any[]>(cacheKey);
+        if (cached) return cached;
+
         try {
             this.logger.debug(`Fetching banners for store: ${storeId}`);
-            return await this.prisma.banner.findMany({
+            const banners = await this.prisma.banner.findMany({
                 where: { storeId, isActive: true },
                 orderBy: { order: 'asc' },
+                take: 20,
                 select: {
                     id: true,
                     title: true,
@@ -322,6 +365,9 @@ export class StorefrontService {
                     fallbackColor: true,
                 },
             });
+
+            await this.setCache(cacheKey, banners, 300); // 5min
+            return banners;
         } catch (error) {
             this.logger.error(`Error getting banners: ${error.message}`, error.stack);
             throw error;

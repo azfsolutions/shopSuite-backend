@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../../../../database/prisma.service';
 import { FeaturedProductResult } from '../../core/interfaces/featured-product.interface';
 
@@ -205,7 +205,7 @@ export class FeaturedProductsService {
                 productId: data.productId
             }
         });
-        if (existing) throw new Error('Producto ya está destacado');
+        if (existing) throw new ConflictException('Producto ya está destacado');
 
         // Get max position + 1 if no position provided
         if (data.position === undefined) {

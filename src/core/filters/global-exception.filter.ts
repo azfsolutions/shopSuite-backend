@@ -7,6 +7,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import * as Sentry from '@sentry/node';
 
 // ============================================================
 // 🚨 GLOBAL EXCEPTION FILTER
@@ -91,15 +92,12 @@ export class GlobalExceptionFilter implements ExceptionFilter {
                 exception instanceof Error ? exception.stack : undefined,
             );
 
-            // En producción, esto iría a un servicio de monitoring como Sentry
-            if (this.isProduction) {
-                console.error(JSON.stringify({
-                    level: 'error',
-                    timestamp: new Date().toISOString(),
-                    ...logContext,
-                    message,
-                    stack: exception instanceof Error ? exception.stack : undefined,
-                }));
+            // Send to Sentry in production
+            if (this.isProduction && exception instanceof Error) {
+                Sentry.captureException(exception, {
+                    tags: { method, path },
+                    extra: logContext,
+                });
             }
         } else if (status >= 400) {
             // Errores de cliente - solo warn

@@ -12,24 +12,9 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@ne
 import { SubscriptionsService } from './subscriptions.service';
 import { AuthGuard } from '../../core/guards';
 import { CurrentStore } from '../../core/decorators/current-store.decorator';
-import { PlanType, SubscriptionStatus } from '@prisma/client';
-import { IsEnum, IsNotEmpty } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
-
-// DTOs
-class RequestUpgradeDto {
-    @ApiProperty({ enum: PlanType })
-    @IsEnum(PlanType)
-    @IsNotEmpty()
-    planType: PlanType;
-}
-
-class ActivateSubscriptionDto {
-    @ApiProperty({ enum: PlanType })
-    @IsEnum(PlanType)
-    @IsNotEmpty()
-    planType: PlanType;
-}
+import { SubscriptionStatus } from '@prisma/client';
+import { RequestUpgradeDto } from './dto/request-upgrade.dto';
+import { ActivateSubscriptionDto } from './dto/activate-subscription.dto';
 
 // ============================================================
 // PUBLIC CONTROLLER - Plans
@@ -50,8 +35,8 @@ export class PlansController {
     @Get(':type')
     @ApiOperation({ summary: 'Obtener plan por tipo' })
     @ApiResponse({ status: 200, description: 'Plan encontrado' })
-    getPlanByType(@Param('type') type: PlanType) {
-        return this.subscriptionsService.getPlanByType(type);
+    getPlanByType(@Param('type') type: string) {
+        return this.subscriptionsService.getPlanByType(type as any);
     }
 }
 

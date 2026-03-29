@@ -73,8 +73,8 @@ export class AuditService {
         ]);
 
         return {
-            logs,
-            pagination: {
+            data: logs,
+            meta: {
                 page,
                 limit,
                 total,
@@ -157,7 +157,7 @@ export class AuditService {
                 user: { select: { firstName: true, lastName: true, email: true } },
             },
             orderBy: { createdAt: 'desc' },
-            take: 10000, // Límite para exportación
+            take: 5000, // Bounded export limit
         });
     }
 }
