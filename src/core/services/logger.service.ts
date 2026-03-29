@@ -56,7 +56,7 @@ export class LoggerService {
                         : winston.format.combine(
                             winston.format.timestamp({ format: 'HH:mm:ss' }),
                             winston.format.colorize(),
-                            winston.format.printf(({ timestamp, level, message, service, ...meta }) => {
+                            winston.format.printf(({ timestamp, level, message, service: _service, ...meta }) => {
                                 const metaKeys = Object.keys(meta);
                                 const metaStr = metaKeys.length > 0
                                     ? ` ${JSON.stringify(meta)}`
