@@ -1,7 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AnalyticsService } from './analytics.service';
+import { SalesAnalyticsService } from './services/sales-analytics.service';
+import { CustomerAnalyticsService } from './services/customer-analytics.service';
+import { ProductAnalyticsService } from './services/product-analytics.service';
+import { OrderAnalyticsService } from './services/order-analytics.service';
+import { DashboardAlertsService } from './services/dashboard-alerts.service';
 import { PrismaService } from '../../database/prisma.service';
 import { createMockPrismaService, MockPrismaService } from '../../test/prisma-mock.factory';
+import { getDateRange } from './helpers/date-range.helper';
 
 describe('AnalyticsService', () => {
     let service: AnalyticsService;
@@ -12,6 +18,11 @@ describe('AnalyticsService', () => {
         const module: TestingModule = await Test.createTestingModule({
             providers: [
                 AnalyticsService,
+                SalesAnalyticsService,
+                CustomerAnalyticsService,
+                ProductAnalyticsService,
+                OrderAnalyticsService,
+                DashboardAlertsService,
                 { provide: PrismaService, useValue: prisma },
             ],
         }).compile();
@@ -23,7 +34,7 @@ describe('AnalyticsService', () => {
 
     describe('getDateRange', () => {
         it('should calculate today range correctly', () => {
-            const range = (service as any).getDateRange('today');
+            const range = getDateRange('today');
             const today = new Date();
 
             expect(range.start.getDate()).toBe(today.getDate());
@@ -31,22 +42,22 @@ describe('AnalyticsService', () => {
         });
 
         it('should calculate week range', () => {
-            const range = (service as any).getDateRange('week');
+            const range = getDateRange('week');
             expect(range.start).toBeInstanceOf(Date);
         });
 
         it('should calculate month range', () => {
-            const range = (service as any).getDateRange('month');
+            const range = getDateRange('month');
             expect(range.start).toBeInstanceOf(Date);
         });
 
         it('should calculate year range', () => {
-            const range = (service as any).getDateRange('year');
+            const range = getDateRange('year');
             expect(range.start).toBeInstanceOf(Date);
         });
 
         it('should handle custom date range', () => {
-            const range = (service as any).getDateRange('custom', '2024-01-01', '2024-01-31');
+            const range = getDateRange('custom', '2024-01-01', '2024-01-31');
             expect(range.start.toISOString()).toContain('2024-01-01');
         });
     });

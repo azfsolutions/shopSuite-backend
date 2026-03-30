@@ -1,6 +1,7 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, HttpCode, HttpStatus } from '@nestjs/common';
+import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
+import { CreateProductDto, UpdateProductDto, AddProductImageDto, UpdateExclusiveDto } from './dto';
 import { AuthGuard, StoreAccessGuard, GlobalRoleGuard } from '../../core/guards';
 import { RequireGlobalRole } from '../../core/decorators';
 
@@ -32,12 +33,11 @@ export class ProductsController {
     }
 
     @Post()
+    @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Create new product' })
-    async create(
-        @Param('storeId') storeId: string,
-        @Body() data: { name: string; slug: string; price: number; stock?: number; status?: string }
-    ) {
-        return this.productsService.create(storeId, data);
+    @ApiResponse({ status: 201, description: 'Product created' })
+    async create(@Param('storeId') storeId: string, @Body() dto: CreateProductDto) {
+        return this.productsService.create(storeId, dto);
     }
 
     @Patch(':productId')
@@ -45,25 +45,31 @@ export class ProductsController {
     async update(
         @Param('storeId') storeId: string,
         @Param('productId') productId: string,
-        @Body() data: { name?: string; price?: number }
+        @Body() dto: UpdateProductDto,
     ) {
-        return this.productsService.update(storeId, productId, data);
+        return this.productsService.update(storeId, productId, dto);
     }
 
     @Delete(':productId')
+    @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete product' })
+    @ApiResponse({ status: 204, description: 'Product deleted' })
     async delete(@Param('storeId') storeId: string, @Param('productId') productId: string) {
         return this.productsService.delete(storeId, productId);
     }
 
     @Post(':productId/images')
+    @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Add image to product' })
-    async addImage(@Param('productId') productId: string, @Body() data: { url: string; position?: number }) {
-        return this.productsService.addImage(productId, data.url, data.position);
+    @ApiResponse({ status: 201, description: 'Image added' })
+    async addImage(@Param('productId') productId: string, @Body() dto: AddProductImageDto) {
+        return this.productsService.addImage(productId, dto.url, dto.position);
     }
 
     @Delete(':productId/images/:imageId')
+    @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete product image' })
+    @ApiResponse({ status: 204, description: 'Image deleted' })
     async deleteImage(@Param('imageId') imageId: string) {
         return this.productsService.deleteImage(imageId);
     }
@@ -73,8 +79,8 @@ export class ProductsController {
     async updateExclusive(
         @Param('storeId') storeId: string,
         @Param('productId') productId: string,
-        @Body() data: { isExclusive: boolean }
+        @Body() dto: UpdateExclusiveDto,
     ) {
-        return this.productsService.updateExclusiveStatus(storeId, productId, data.isExclusive);
+        return this.productsService.updateExclusiveStatus(storeId, productId, dto.isExclusive);
     }
 }

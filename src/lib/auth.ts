@@ -2,7 +2,6 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
-
 const TRUSTED_ORIGINS_CACHE_KEY = 'ba:trusted_origins';
 const TRUSTED_ORIGINS_TTL_SEC = 5 * 60; // 5 minutes
 

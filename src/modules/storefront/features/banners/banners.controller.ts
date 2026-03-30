@@ -24,6 +24,7 @@ import {
 import { AuthGuard } from '../../../../core/guards';
 import { BannersService } from './banners.service';
 import { CreateBannerDto, UpdateBannerDto } from './dto';
+import { ReorderBannersDto } from './dto/reorder-banners.dto';
 
 /**
  * Controller para gestionar banners del hero slider
@@ -119,8 +120,8 @@ export class BannersController {
     })
     async reorder(
         @Param('storeId') storeId: string,
-        @Body() bannerOrders: { id: string; order: number }[],
+        @Body() dto: ReorderBannersDto,
     ) {
-        return this.bannersService.reorder(storeId, bannerOrders);
+        return this.bannersService.reorder(storeId, dto.bannerOrders);
     }
 }

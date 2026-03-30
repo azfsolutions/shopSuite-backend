@@ -32,27 +32,46 @@ export class ProductsService {
         const page = filterDto.page || 1;
         const limit = filterDto.limit || 20;
 
-        const products = await this.prisma.product.findMany({
-            where: {
-                storeId,
-                deletedAt: null,
-            },
-            include: {
-                category: true,
-                images: { take: 1, orderBy: { position: 'asc' } },
-            },
-            take: limit,
-        });
+        const where: any = { storeId, deletedAt: null };
+        if (filterDto.categoryId) where.categoryId = filterDto.categoryId;
+        if (filterDto.status) where.status = filterDto.status;
+        if (filterDto.search) {
+            where.name = { contains: filterDto.search, mode: 'insensitive' };
+        }
 
-        this.logger.debug(`findAll(${storeId}): found ${products.length} products`);
+        const [total, products] = await Promise.all([
+            this.prisma.product.count({ where }),
+            this.prisma.product.findMany({
+                where,
+                select: {
+                    id: true,
+                    name: true,
+                    slug: true,
+                    price: true,
+                    compareAtPrice: true,
+                    stock: true,
+                    status: true,
+                    isFeatured: true,
+                    isExclusive: true,
+                    createdAt: true,
+                    category: { select: { id: true, name: true, slug: true } },
+                    images: { take: 1, orderBy: { position: 'asc' }, select: { url: true } },
+                },
+                take: limit,
+                skip: (page - 1) * limit,
+                orderBy: { createdAt: 'desc' },
+            }),
+        ]);
+
+        this.logger.debug(`findAll(${storeId}): found ${products.length} of ${total}`);
 
         return {
             data: products,
             meta: {
-                total: products.length,
+                total,
                 page,
                 limit,
-                totalPages: 1,
+                totalPages: Math.ceil(total / limit),
             },
         };
     }

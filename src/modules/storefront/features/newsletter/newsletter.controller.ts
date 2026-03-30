@@ -10,6 +10,7 @@ import {
     HttpCode,
     HttpStatus,
     Res,
+    NotFoundException,
 } from '@nestjs/common';
 import {
     ApiTags,
@@ -23,6 +24,7 @@ import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/g
 import { CurrentStore, RequireGlobalRole } from '../../../../core/decorators';
 import { NewsletterService } from './newsletter.service';
 import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
+import { BroadcastNewsletterDto } from './dto/broadcast-newsletter.dto';
 
 /**
  * Controller para gestionar Newsletter
@@ -99,9 +101,9 @@ export class NewsletterController {
     @RequireGlobalRole('USER', 'SUPER_ADMIN')
     async broadcast(
         @CurrentStore('id') storeId: string,
-        @Body() body: { subject: string; message: string },
+        @Body() dto: BroadcastNewsletterDto,
     ) {
-        return this.newsletterService.broadcast(storeId, body.subject, body.message);
+        return this.newsletterService.broadcast(storeId, dto.subject, dto.message);
     }
 
     // ============================================================
@@ -124,7 +126,7 @@ export class NewsletterController {
         });
 
         if (!store) {
-            throw new Error('Tienda no encontrada');
+            throw new NotFoundException('Tienda no encontrada');
         }
 
         return this.newsletterService.subscribe(store.id, subscribeDto);

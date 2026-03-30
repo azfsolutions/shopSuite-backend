@@ -41,7 +41,7 @@ export class CustomersService {
                 lastOrderAt: c.lastOrderAt,
                 createdAt: c.createdAt,
             })),
-            meta: { total, page, limit },
+            meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
         };
     }
 
