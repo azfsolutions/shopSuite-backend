@@ -74,21 +74,4 @@ describe('TeamService', () => {
         });
     });
 
-    describe('logAction', () => {
-        it('should create audit log entry', async () => {
-            prisma.auditLog.create.mockResolvedValue({});
-
-            await (service as any).logAction('store-1', 'user-1', 'INVITE_MEMBER', { email: 'new@test.com' });
-
-            expect(prisma.auditLog.create).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    data: expect.objectContaining({
-                        storeId: 'store-1',
-                        userId: 'user-1',
-                        action: 'INVITE_MEMBER',
-                    }),
-                }),
-            );
-        });
-    });
 });

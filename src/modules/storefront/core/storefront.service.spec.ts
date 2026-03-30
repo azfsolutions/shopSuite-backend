@@ -3,7 +3,10 @@ import { NotFoundException } from '@nestjs/common';
 import { StorefrontService } from './storefront.service';
 import { PrismaService } from '../../../database/prisma.service';
 import { createMockPrismaService, MockPrismaService } from '../../../test/prisma-mock.factory';
+import { RedisService } from '../../redis/redis.service';
 import { createMockStore, createMockProduct, createMockCategory } from '../../../test/test-helpers';
+
+const mockRedisService = { isAvailable: false, get: jest.fn(), set: jest.fn() };
 
 describe('StorefrontService', () => {
     let service: StorefrontService;
@@ -15,6 +18,7 @@ describe('StorefrontService', () => {
             providers: [
                 StorefrontService,
                 { provide: PrismaService, useValue: prisma },
+                { provide: RedisService, useValue: mockRedisService },
             ],
         }).compile();
 
