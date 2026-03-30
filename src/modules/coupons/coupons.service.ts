@@ -59,6 +59,7 @@ export class CouponsService {
         const coupons = await this.prisma.coupon.findMany({
             where,
             orderBy: { createdAt: 'desc' },
+            take: 100,
         });
 
         return coupons;

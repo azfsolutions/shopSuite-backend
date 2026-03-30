@@ -10,22 +10,12 @@ import {
     NotFoundException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
-import { IsEmail, IsBoolean } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
 import { NewsletterService } from './newsletter.service';
+import { StorefrontSubscribeDto } from './dto/storefront-subscribe.dto';
+import { UnsubscribeNewsletterDto } from './dto/unsubscribe-newsletter.dto';
 import { OptionalBuyerAuthGuard } from '../../../buyer-auth/guards/optional-buyer-auth.guard';
 import { BuyerAuthGuard } from '../../../buyer-auth/guards/buyer-auth.guard';
 import { PrismaService } from '../../../../database/prisma.service';
-
-class StorefrontSubscribeDto {
-    @ApiProperty()
-    @IsEmail()
-    email: string;
-
-    @ApiProperty({ default: true })
-    @IsBoolean()
-    consentGiven: boolean;
-}
 
 @ApiTags('storefront-newsletter')
 @Controller('storefront/:storeSlug/subscribe')
@@ -89,10 +79,10 @@ export class NewsletterPublicController {
     @ApiOperation({ summary: 'Cancelar suscripción' })
     async unsubscribe(
         @Param('storeSlug') storeSlug: string,
-        @Body() body: { email: string },
+        @Body() dto: UnsubscribeNewsletterDto,
     ) {
         const storeId = await this.getStoreId(storeSlug);
-        return this.newsletterService.unsubscribe(storeId, body.email);
+        return this.newsletterService.unsubscribe(storeId, dto.email);
     }
 
     @Get('status')

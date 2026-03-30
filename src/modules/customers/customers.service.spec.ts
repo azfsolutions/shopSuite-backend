@@ -32,7 +32,7 @@ describe('CustomersService', () => {
             const result = await service.findAll('store-1');
 
             expect(result.data).toHaveLength(1);
-            expect(result.meta).toEqual({ total: 1, page: 1, limit: 20 });
+            expect(result.meta).toEqual({ total: 1, page: 1, limit: 20, totalPages: 1 });
         });
 
         it('should support custom pagination', async () => {

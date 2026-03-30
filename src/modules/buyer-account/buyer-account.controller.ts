@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, Request, NotFoundException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { BuyerAccountService } from './buyer-account.service';
 import { CreateAddressDto, UpdateAddressDto } from './dto/address.dto';
@@ -21,7 +21,7 @@ export class BuyerAccountController {
             where: { slug: storeSlug },
             select: { id: true },
         });
-        if (!store) throw new Error('Tienda no encontrada');
+        if (!store) throw new NotFoundException('Tienda no encontrada');
         return store.id;
     }
 

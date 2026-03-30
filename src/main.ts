@@ -1,14 +1,19 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './core/filters/global-exception.filter';
 import { PrismaExceptionFilter } from './core/filters/prisma-exception.filter';
+import { ResponseInterceptor } from './core/interceptors/response.interceptor';
 import { PrismaService } from './database/prisma.service';
+import { initSentry } from './config/sentry.config';
 
 async function bootstrap() {
+    // Initialize Sentry before anything else
+    initSentry();
+
     const app = await NestFactory.create(AppModule);
     const logger = new Logger('Bootstrap');
 
@@ -64,8 +69,17 @@ async function bootstrap() {
         xssFilter: true,
     }));
 
+    // Global Response Interceptor — standardizes all responses
+    app.useGlobalInterceptors(new ResponseInterceptor());
+
     // Global prefix
     app.setGlobalPrefix('api');
+
+    // API Versioning (URI-based: /api/v1/...)
+    app.enableVersioning({
+        type: VersioningType.URI,
+        defaultVersion: '1',
+    });
 
     // ============================================================
     // 🌐 CORS - Cross-Origin Resource Sharing
