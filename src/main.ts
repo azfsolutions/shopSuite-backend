@@ -1,5 +1,5 @@
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe, Logger } from '@nestjs/common';
+import { ValidationPipe, Logger, VersioningType, VERSION_NEUTRAL } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
@@ -74,6 +74,13 @@ async function bootstrap() {
 
     // Global prefix
     app.setGlobalPrefix('api');
+
+    // API Versioning — VERSION_NEUTRAL keeps current routes working at /api/*
+    // while allowing future controllers to opt-in with @Version('1') for /api/v1/*
+    app.enableVersioning({
+        type: VersioningType.URI,
+        defaultVersion: VERSION_NEUTRAL,
+    });
 
     // ============================================================
     // 🌐 CORS - Cross-Origin Resource Sharing

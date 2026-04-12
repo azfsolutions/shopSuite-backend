@@ -44,11 +44,11 @@ export class TestimonialsService {
     }
 
     /**
-     * Obtener un testimonial por ID
+     * Obtener un testimonial por ID (scoped al storeId)
      */
-    async findById(testimonialId: string) {
-        const testimonial = await this.prisma.testimonial.findUnique({
-            where: { id: testimonialId },
+    async findById(storeId: string, testimonialId: string) {
+        const testimonial = await this.prisma.testimonial.findFirst({
+            where: { id: testimonialId, storeId },
             include: {
                 product: {
                     select: { id: true, name: true, slug: true },
@@ -105,23 +105,14 @@ export class TestimonialsService {
     }
 
     /**
-     * Actualizar un testimonial
+     * Actualizar un testimonial (scoped al storeId)
      */
-    async update(testimonialId: string, updateDto: UpdateTestimonialDto) {
-        await this.findById(testimonialId);
+    async update(storeId: string, testimonialId: string, updateDto: UpdateTestimonialDto) {
+        await this.findById(storeId, testimonialId);
 
-        // Si hay productId, verificar que existe
         if (updateDto.productId) {
-            const testimonial = await this.prisma.testimonial.findUnique({
-                where: { id: testimonialId },
-            });
-
-            if (!testimonial) {
-                throw new NotFoundException('Testimonio no encontrado');
-            }
-
             const product = await this.prisma.product.findFirst({
-                where: { id: updateDto.productId, storeId: testimonial.storeId },
+                where: { id: updateDto.productId, storeId },
             });
 
             if (!product) {
@@ -145,10 +136,10 @@ export class TestimonialsService {
     }
 
     /**
-     * Eliminar un testimonial
+     * Eliminar un testimonial (scoped al storeId)
      */
-    async delete(testimonialId: string) {
-        await this.findById(testimonialId);
+    async delete(storeId: string, testimonialId: string) {
+        await this.findById(storeId, testimonialId);
 
         await this.prisma.testimonial.delete({
             where: { id: testimonialId },
@@ -158,10 +149,10 @@ export class TestimonialsService {
     }
 
     /**
-     * Toggle featured status
+     * Toggle featured status (scoped al storeId)
      */
-    async toggleFeatured(testimonialId: string) {
-        const testimonial = await this.findById(testimonialId);
+    async toggleFeatured(storeId: string, testimonialId: string) {
+        const testimonial = await this.findById(storeId, testimonialId);
 
         const updated = await this.prisma.testimonial.update({
             where: { id: testimonialId },
@@ -172,10 +163,10 @@ export class TestimonialsService {
     }
 
     /**
-     * Toggle approved status
+     * Toggle approved status (scoped al storeId)
      */
-    async toggleApproved(testimonialId: string) {
-        const testimonial = await this.findById(testimonialId);
+    async toggleApproved(storeId: string, testimonialId: string) {
+        const testimonial = await this.findById(storeId, testimonialId);
 
         const updated = await this.prisma.testimonial.update({
             where: { id: testimonialId },

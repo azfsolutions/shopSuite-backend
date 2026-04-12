@@ -16,20 +16,15 @@ import {
     ApiBearerAuth,
     ApiParam,
 } from '@nestjs/swagger';
-import { AuthGuard } from '../../../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/guards';
+import { RequireGlobalRole } from '../../../../core/decorators';
 import { SettingsService } from './settings.service';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
-/**
- * Controller para gestionar configuraciones del storefront
- * Rutas:
- * - GET  /dashboard/stores/:storeId/settings/storefront
- * - PUT  /dashboard/stores/:storeId/settings/storefront
- * - POST /dashboard/stores/:storeId/settings/storefront/reset
- */
 @ApiTags('Storefront - Settings')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('dashboard/stores/:storeId/settings/storefront')
 export class SettingsController {
     constructor(private readonly settingsService: SettingsService) { }

@@ -44,12 +44,11 @@ export class BannersService {
     }
 
     /**
-     * Obtener un banner específico por ID
-     * @param bannerId - ID del banner
+     * Obtener un banner específico por ID (scoped al storeId)
      */
-    async findById(bannerId: string) {
-        const banner = await this.prisma.banner.findUnique({
-            where: { id: bannerId },
+    async findById(storeId: string, bannerId: string) {
+        const banner = await this.prisma.banner.findFirst({
+            where: { id: bannerId, storeId },
         });
 
         if (!banner) {
@@ -95,13 +94,10 @@ export class BannersService {
     }
 
     /**
-     * Actualizar un banner existente
-     * @param bannerId - ID del banner
-     * @param updateBannerDto - Datos a actualizar
+     * Actualizar un banner existente (scoped al storeId)
      */
-    async update(bannerId: string, updateBannerDto: UpdateBannerDto) {
-        // Verificar que existe
-        await this.findById(bannerId);
+    async update(storeId: string, bannerId: string, updateBannerDto: UpdateBannerDto) {
+        await this.findById(storeId, bannerId);
 
         const updatedBanner = await this.prisma.banner.update({
             where: { id: bannerId },
@@ -112,12 +108,10 @@ export class BannersService {
     }
 
     /**
-     * Eliminar un banner
-     * @param bannerId - ID del banner
+     * Eliminar un banner (scoped al storeId)
      */
-    async delete(bannerId: string) {
-        // Verificar que existe
-        await this.findById(bannerId);
+    async delete(storeId: string, bannerId: string) {
+        await this.findById(storeId, bannerId);
 
         await this.prisma.banner.delete({
             where: { id: bannerId },

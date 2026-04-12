@@ -62,16 +62,24 @@ export class ProductsController {
     @HttpCode(HttpStatus.CREATED)
     @ApiOperation({ summary: 'Add image to product' })
     @ApiResponse({ status: 201, description: 'Image added' })
-    async addImage(@Param('productId') productId: string, @Body() dto: AddProductImageDto) {
-        return this.productsService.addImage(productId, dto.url, dto.position);
+    async addImage(
+        @Param('storeId') storeId: string,
+        @Param('productId') productId: string,
+        @Body() dto: AddProductImageDto,
+    ) {
+        return this.productsService.addImage(storeId, productId, dto.url, dto.position);
     }
 
     @Delete(':productId/images/:imageId')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Delete product image' })
     @ApiResponse({ status: 204, description: 'Image deleted' })
-    async deleteImage(@Param('imageId') imageId: string) {
-        return this.productsService.deleteImage(imageId);
+    async deleteImage(
+        @Param('storeId') storeId: string,
+        @Param('productId') productId: string,
+        @Param('imageId') imageId: string,
+    ) {
+        return this.productsService.deleteImage(storeId, productId, imageId);
     }
 
     @Patch(':productId/exclusive')

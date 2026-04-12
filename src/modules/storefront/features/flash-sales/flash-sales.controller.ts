@@ -16,19 +16,17 @@ import {
     ApiBearerAuth,
     ApiParam,
 } from '@nestjs/swagger';
-import { AuthGuard } from '../../../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/guards';
+import { RequireGlobalRole } from '../../../../core/decorators';
 import { FlashSalesService } from './flash-sales.service';
 import { CreateFlashSaleDto } from './dto/create-flash-sale.dto';
 import { UpdateFlashSaleDto } from './dto/update-flash-sale.dto';
 import { FlashSaleItemDto } from './dto/create-flash-sale.dto';
 
-
-/**
- * Controller para gestionar Flash Sales
- */
 @ApiTags('Storefront - Flash Sales')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('dashboard/stores/:storeId/flash-sales')
 export class FlashSalesController {
     constructor(private readonly flashSalesService: FlashSalesService) { }
@@ -44,8 +42,11 @@ export class FlashSalesController {
     @ApiOperation({ summary: 'Obtener una flash sale por ID' })
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     @ApiParam({ name: 'id', description: 'ID de la flash sale' })
-    async findOne(@Param('id') id: string) {
-        return this.flashSalesService.findById(id);
+    async findOne(
+        @Param('storeId') storeId: string,
+        @Param('id') id: string,
+    ) {
+        return this.flashSalesService.findById(storeId, id);
     }
 
     @Post()
@@ -63,10 +64,11 @@ export class FlashSalesController {
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     @ApiParam({ name: 'id', description: 'ID de la flash sale' })
     async update(
+        @Param('storeId') storeId: string,
         @Param('id') id: string,
         @Body() updateDto: UpdateFlashSaleDto,
     ) {
-        return this.flashSalesService.update(id, updateDto);
+        return this.flashSalesService.update(storeId, id, updateDto);
     }
 
     @Delete(':id')
@@ -74,8 +76,11 @@ export class FlashSalesController {
     @ApiOperation({ summary: 'Eliminar una flash sale' })
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     @ApiParam({ name: 'id', description: 'ID de la flash sale' })
-    async delete(@Param('id') id: string) {
-        return this.flashSalesService.delete(id);
+    async delete(
+        @Param('storeId') storeId: string,
+        @Param('id') id: string,
+    ) {
+        return this.flashSalesService.delete(storeId, id);
     }
 
     @Post(':id/items')
@@ -83,10 +88,11 @@ export class FlashSalesController {
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     @ApiParam({ name: 'id', description: 'ID de la flash sale' })
     async addItem(
+        @Param('storeId') storeId: string,
         @Param('id') id: string,
         @Body() item: FlashSaleItemDto,
     ) {
-        return this.flashSalesService.addItem(id, item);
+        return this.flashSalesService.addItem(storeId, id, item);
     }
 
     @Delete(':id/items/:itemId')
@@ -96,9 +102,10 @@ export class FlashSalesController {
     @ApiParam({ name: 'id', description: 'ID de la flash sale' })
     @ApiParam({ name: 'itemId', description: 'ID del item' })
     async removeItem(
+        @Param('storeId') storeId: string,
         @Param('id') id: string,
         @Param('itemId') itemId: string,
     ) {
-        return this.flashSalesService.removeItem(id, itemId);
+        return this.flashSalesService.removeItem(storeId, id, itemId);
     }
 }

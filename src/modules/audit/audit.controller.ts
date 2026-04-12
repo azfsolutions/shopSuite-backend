@@ -10,12 +10,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 import { Response } from 'express';
 import { AuditService } from './audit.service';
 import { AuditFiltersDto } from './dto';
-import { AuthGuard } from '../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../core/guards';
+import { RequireGlobalRole } from '../../core/decorators';
 import { CurrentStore } from '../../core/decorators/current-store.decorator';
 
 @ApiTags('Audit Logs')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('audit')
 export class AuditController {
     constructor(private readonly auditService: AuditService) { }

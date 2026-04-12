@@ -23,24 +23,26 @@ import { Response } from 'express';
 import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/guards';
 import { CurrentStore, RequireGlobalRole } from '../../../../core/decorators';
 import { NewsletterService } from './newsletter.service';
+import { PrismaService } from '../../../../database/prisma.service';
 import { SubscribeNewsletterDto } from './dto/subscribe-newsletter.dto';
 import { BroadcastNewsletterDto } from './dto/broadcast-newsletter.dto';
 
-/**
- * Controller para gestionar Newsletter
- */
 @ApiTags('Storefront - Newsletter')
 @Controller()
 export class NewsletterController {
-    constructor(private readonly newsletterService: NewsletterService) { }
+    constructor(
+        private readonly newsletterService: NewsletterService,
+        private readonly prisma: PrismaService,
+    ) { }
 
     // ============================================================
-    // ADMIN ENDPOINTS (Requieren autenticación)
+    // ADMIN ENDPOINTS (Requieren autenticación + tenant validation)
     // ============================================================
 
     @Get('dashboard/stores/:storeId/newsletter')
     @ApiBearerAuth()
-    @UseGuards(AuthGuard)
+    @UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+    @RequireGlobalRole('USER', 'SUPER_ADMIN')
     @ApiOperation({ summary: 'Obtener suscriptores con paginación' })
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     @ApiQuery({ name: 'page', required: false, type: Number })
@@ -57,7 +59,8 @@ export class NewsletterController {
 
     @Get('dashboard/stores/:storeId/newsletter/stats')
     @ApiBearerAuth()
-    @UseGuards(AuthGuard)
+    @UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+    @RequireGlobalRole('USER', 'SUPER_ADMIN')
     @ApiOperation({ summary: 'Obtener estadísticas de newsletter' })
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     async getStats(@Param('storeId') storeId: string) {
@@ -66,7 +69,8 @@ export class NewsletterController {
 
     @Get('dashboard/stores/:storeId/newsletter/export')
     @ApiBearerAuth()
-    @UseGuards(AuthGuard)
+    @UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+    @RequireGlobalRole('USER', 'SUPER_ADMIN')
     @ApiOperation({ summary: 'Exportar suscriptores a CSV' })
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     async exportCsv(
@@ -85,13 +89,17 @@ export class NewsletterController {
 
     @Delete('dashboard/stores/:storeId/newsletter/:subscriberId')
     @ApiBearerAuth()
-    @UseGuards(AuthGuard)
+    @UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+    @RequireGlobalRole('USER', 'SUPER_ADMIN')
     @HttpCode(HttpStatus.NO_CONTENT)
     @ApiOperation({ summary: 'Eliminar un suscriptor' })
     @ApiParam({ name: 'storeId', description: 'ID de la tienda' })
     @ApiParam({ name: 'subscriberId', description: 'ID del suscriptor' })
-    async delete(@Param('subscriberId') subscriberId: string) {
-        return this.newsletterService.delete(subscriberId);
+    async delete(
+        @Param('storeId') storeId: string,
+        @Param('subscriberId') subscriberId: string,
+    ) {
+        return this.newsletterService.delete(storeId, subscriberId);
     }
 
     @Post('dashboard/stores/:storeId/newsletter/broadcast')
@@ -117,12 +125,9 @@ export class NewsletterController {
         @Param('storeSlug') storeSlug: string,
         @Body() subscribeDto: SubscribeNewsletterDto,
     ) {
-        // Primero obtenemos el storeId del slug
-        const { PrismaService } = await import('../../../../database/prisma.service');
-        const prisma = new PrismaService();
-
-        const store = await prisma.store.findUnique({
+        const store = await this.prisma.store.findUnique({
             where: { slug: storeSlug },
+            select: { id: true },
         });
 
         if (!store) {

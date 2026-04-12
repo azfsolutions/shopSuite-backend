@@ -13,7 +13,8 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto, ReplyReviewDto } from './dto';
-import { AuthGuard } from '../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../core/guards';
+import { RequireGlobalRole } from '../../core/decorators';
 import { CurrentStore } from '../../core/decorators/current-store.decorator';
 import { ReviewStatus } from '@prisma/client';
 
@@ -68,7 +69,8 @@ export class ReviewsAccountController {
 
 @ApiTags('Reviews - Dashboard')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('reviews')
 export class ReviewsDashboardController {
     constructor(private readonly reviewsService: ReviewsService) { }

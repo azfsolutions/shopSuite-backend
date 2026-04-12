@@ -34,12 +34,11 @@ export class BenefitsService {
     }
 
     /**
-     * Obtener un benefit específico por ID
-     * @param benefitId - ID del benefit
+     * Obtener un benefit específico por ID (scoped al storeId)
      */
-    async findById(benefitId: string) {
-        const benefit = await this.prisma.storeBenefit.findUnique({
-            where: { id: benefitId },
+    async findById(storeId: string, benefitId: string) {
+        const benefit = await this.prisma.storeBenefit.findFirst({
+            where: { id: benefitId, storeId },
         });
 
         if (!benefit) {
@@ -85,13 +84,10 @@ export class BenefitsService {
     }
 
     /**
-     * Actualizar un benefit existente
-     * @param benefitId - ID del benefit
-     * @param updateBenefitDto - Datos a actualizar
+     * Actualizar un benefit existente (scoped al storeId)
      */
-    async update(benefitId: string, updateBenefitDto: UpdateBenefitDto) {
-        // Verificar que existe
-        await this.findById(benefitId);
+    async update(storeId: string, benefitId: string, updateBenefitDto: UpdateBenefitDto) {
+        await this.findById(storeId, benefitId);
 
         const updatedBenefit = await this.prisma.storeBenefit.update({
             where: { id: benefitId },
@@ -102,12 +98,10 @@ export class BenefitsService {
     }
 
     /**
-     * Eliminar un benefit
-     * @param benefitId - ID del benefit
+     * Eliminar un benefit (scoped al storeId)
      */
-    async delete(benefitId: string) {
-        // Verificar que existe
-        await this.findById(benefitId);
+    async delete(storeId: string, benefitId: string) {
+        await this.findById(storeId, benefitId);
 
         await this.prisma.storeBenefit.delete({
             where: { id: benefitId },

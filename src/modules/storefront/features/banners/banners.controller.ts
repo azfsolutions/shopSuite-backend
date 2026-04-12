@@ -21,23 +21,16 @@ import {
     ApiParam,
     ApiQuery,
 } from '@nestjs/swagger';
-import { AuthGuard } from '../../../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/guards';
+import { RequireGlobalRole } from '../../../../core/decorators';
 import { BannersService } from './banners.service';
 import { CreateBannerDto, UpdateBannerDto } from './dto';
 import { ReorderBannersDto } from './dto/reorder-banners.dto';
 
-/**
- * Controller para gestionar banners del hero slider
- * Rutas:
- * - GET    /dashboard/stores/:storeId/banners
- * - POST   /dashboard/stores/:storeId/banners
- * - PUT    /dashboard/stores/:storeId/banners/:id
- * - DELETE /dashboard/stores/:storeId/banners/:id
- * - PATCH  /dashboard/stores/:storeId/banners/reorder
- */
 @ApiTags('Storefront - Banners')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('dashboard/stores/:storeId/banners')
 export class BannersController {
     private readonly logger = new Logger(BannersController.name);
@@ -71,8 +64,11 @@ export class BannersController {
     @ApiParam({ name: 'id', description: 'ID del banner' })
     @ApiResponse({ status: 200, description: 'Banner encontrado' })
     @ApiResponse({ status: 404, description: 'Banner no encontrado' })
-    async findOne(@Param('id') id: string) {
-        return this.bannersService.findById(id);
+    async findOne(
+        @Param('storeId') storeId: string,
+        @Param('id') id: string,
+    ) {
+        return this.bannersService.findById(storeId, id);
     }
 
     @Post()
@@ -94,10 +90,11 @@ export class BannersController {
     @ApiResponse({ status: 200, description: 'Banner actualizado exitosamente' })
     @ApiResponse({ status: 404, description: 'Banner no encontrado' })
     async update(
+        @Param('storeId') storeId: string,
         @Param('id') id: string,
         @Body() updateBannerDto: UpdateBannerDto,
     ) {
-        return this.bannersService.update(id, updateBannerDto);
+        return this.bannersService.update(storeId, id, updateBannerDto);
     }
 
     @Delete(':id')
@@ -107,8 +104,11 @@ export class BannersController {
     @ApiParam({ name: 'id', description: 'ID del banner' })
     @ApiResponse({ status: 204, description: 'Banner eliminado exitosamente' })
     @ApiResponse({ status: 404, description: 'Banner no encontrado' })
-    async delete(@Param('id') id: string) {
-        return this.bannersService.delete(id);
+    async delete(
+        @Param('storeId') storeId: string,
+        @Param('id') id: string,
+    ) {
+        return this.bannersService.delete(storeId, id);
     }
 
     @Patch('reorder')

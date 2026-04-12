@@ -20,23 +20,16 @@ import {
     ApiParam,
     ApiQuery,
 } from '@nestjs/swagger';
-import { AuthGuard } from '../../../../core/guards';
+import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../../../core/guards';
+import { RequireGlobalRole } from '../../../../core/decorators';
 import { BenefitsService } from './benefits.service';
 import { CreateBenefitDto } from './dto/create-benefit.dto';
 import { UpdateBenefitDto } from './dto/update-benefit.dto';
 
-/**
- * Controller para gestionar benefits/features de las tiendas
- * Rutas:
- * - GET    /dashboard/stores/:storeId/benefits
- * - POST   /dashboard/stores/:storeId/benefits
- * - PUT    /dashboard/stores/:storeId/benefits/:id
- * - DELETE /dashboard/stores/:storeId/benefits/:id
- * - PATCH  /dashboard/stores/:storeId/benefits/reorder
- */
 @ApiTags('Storefront - Benefits')
 @ApiBearerAuth()
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, GlobalRoleGuard, StoreAccessGuard)
+@RequireGlobalRole('USER', 'SUPER_ADMIN')
 @Controller('dashboard/stores/:storeId/benefits')
 export class BenefitsController {
     constructor(private readonly benefitsService: BenefitsService) { }
@@ -68,8 +61,11 @@ export class BenefitsController {
     @ApiParam({ name: 'id', description: 'ID del benefit' })
     @ApiResponse({ status: 200, description: 'Benefit encontrado' })
     @ApiResponse({ status: 404, description: 'Benefit no encontrado' })
-    async findOne(@Param('id') id: string) {
-        return this.benefitsService.findById(id);
+    async findOne(
+        @Param('storeId') storeId: string,
+        @Param('id') id: string,
+    ) {
+        return this.benefitsService.findById(storeId, id);
     }
 
     @Post()
@@ -91,10 +87,11 @@ export class BenefitsController {
     @ApiResponse({ status: 200, description: 'Benefit actualizado exitosamente' })
     @ApiResponse({ status: 404, description: 'Benefit no encontrado' })
     async update(
+        @Param('storeId') storeId: string,
         @Param('id') id: string,
         @Body() updateBenefitDto: UpdateBenefitDto,
     ) {
-        return this.benefitsService.update(id, updateBenefitDto);
+        return this.benefitsService.update(storeId, id, updateBenefitDto);
     }
 
     @Delete(':id')
@@ -104,8 +101,11 @@ export class BenefitsController {
     @ApiParam({ name: 'id', description: 'ID del benefit' })
     @ApiResponse({ status: 204, description: 'Benefit eliminado exitosamente' })
     @ApiResponse({ status: 404, description: 'Benefit no encontrado' })
-    async delete(@Param('id') id: string) {
-        return this.benefitsService.delete(id);
+    async delete(
+        @Param('storeId') storeId: string,
+        @Param('id') id: string,
+    ) {
+        return this.benefitsService.delete(storeId, id);
     }
 
     @Patch('reorder')

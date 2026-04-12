@@ -158,13 +158,25 @@ export class ProductsService {
         });
     }
 
-    async addImage(productId: string, url: string, position: number = 0) {
+    async addImage(storeId: string, productId: string, url: string, position: number = 0) {
+        await this.findById(storeId, productId);
+
         return this.prisma.productImage.create({
             data: { productId, url, position },
         });
     }
 
-    async deleteImage(imageId: string) {
+    async deleteImage(storeId: string, productId: string, imageId: string) {
+        await this.findById(storeId, productId);
+
+        const image = await this.prisma.productImage.findFirst({
+            where: { id: imageId, productId },
+        });
+
+        if (!image) {
+            throw new NotFoundException('Imagen no encontrada');
+        }
+
         return this.prisma.productImage.delete({
             where: { id: imageId },
         });

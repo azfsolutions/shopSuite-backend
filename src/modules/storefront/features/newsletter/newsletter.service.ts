@@ -96,11 +96,11 @@ export class NewsletterService {
     }
 
     /**
-     * Eliminar un suscriptor por ID
+     * Eliminar un suscriptor por ID (scoped al storeId)
      */
-    async delete(subscriberId: string) {
-        const subscriber = await this.prisma.newsletterSubscriber.findUnique({
-            where: { id: subscriberId },
+    async delete(storeId: string, subscriberId: string) {
+        const subscriber = await this.prisma.newsletterSubscriber.findFirst({
+            where: { id: subscriberId, storeId },
         });
 
         if (!subscriber) {

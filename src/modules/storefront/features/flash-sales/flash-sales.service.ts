@@ -45,11 +45,11 @@ export class FlashSalesService {
     }
 
     /**
-     * Obtener una flash sale por ID
+     * Obtener una flash sale por ID (scoped al storeId)
      */
-    async findById(flashSaleId: string) {
-        const flashSale = await this.prisma.flashSale.findUnique({
-            where: { id: flashSaleId },
+    async findById(storeId: string, flashSaleId: string) {
+        const flashSale = await this.prisma.flashSale.findFirst({
+            where: { id: flashSaleId, storeId },
             include: {
                 items: {
                     include: {
@@ -147,10 +147,10 @@ export class FlashSalesService {
     }
 
     /**
-     * Actualizar una flash sale (sin items)
+     * Actualizar una flash sale (scoped al storeId, sin items)
      */
-    async update(flashSaleId: string, updateDto: UpdateFlashSaleDto) {
-        await this.findById(flashSaleId);
+    async update(storeId: string, flashSaleId: string, updateDto: UpdateFlashSaleDto) {
+        await this.findById(storeId, flashSaleId);
 
         const data: any = { ...updateDto };
 
@@ -186,12 +186,11 @@ export class FlashSalesService {
     }
 
     /**
-     * Eliminar una flash sale y sus items
+     * Eliminar una flash sale y sus items (scoped al storeId)
      */
-    async delete(flashSaleId: string) {
-        await this.findById(flashSaleId);
+    async delete(storeId: string, flashSaleId: string) {
+        await this.findById(storeId, flashSaleId);
 
-        // Delete items first (cascade)
         await this.prisma.flashSaleItem.deleteMany({
             where: { flashSaleId },
         });
@@ -204,10 +203,10 @@ export class FlashSalesService {
     }
 
     /**
-     * Agregar un producto a una flash sale existente
+     * Agregar un producto a una flash sale existente (scoped al storeId)
      */
-    async addItem(flashSaleId: string, item: FlashSaleItemDto) {
-        const flashSale = await this.findById(flashSaleId);
+    async addItem(storeId: string, flashSaleId: string, item: FlashSaleItemDto) {
+        const flashSale = await this.findById(storeId, flashSaleId);
 
         // Verificar que el producto existe y pertenece a la tienda
         const product = await this.prisma.product.findFirst({
@@ -246,10 +245,10 @@ export class FlashSalesService {
     }
 
     /**
-     * Eliminar un item de una flash sale
+     * Eliminar un item de una flash sale (scoped al storeId)
      */
-    async removeItem(flashSaleId: string, itemId: string) {
-        await this.findById(flashSaleId);
+    async removeItem(storeId: string, flashSaleId: string, itemId: string) {
+        await this.findById(storeId, flashSaleId);
 
         const item = await this.prisma.flashSaleItem.findFirst({
             where: { id: itemId, flashSaleId },
