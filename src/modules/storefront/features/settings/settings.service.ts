@@ -4,6 +4,7 @@ import {
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '@/database/prisma.service';
+import { RedisService } from '@/modules/redis/redis.service';
 import { UpdateSettingsDto } from './dto';
 
 /**
@@ -14,7 +15,10 @@ import { UpdateSettingsDto } from './dto';
 export class SettingsService {
     private readonly logger = new Logger(SettingsService.name);
 
-    constructor(private readonly prisma: PrismaService) { }
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly redis: RedisService,
+    ) { }
 
     /**
      * Obtener configuraciones de una tienda
@@ -62,6 +66,9 @@ export class SettingsService {
             where: { storeId },
             data: updateSettingsDto,
         });
+
+        // Invalidar cache público para que el storefront refleje los cambios al instante
+        await this.redis.del(`sf:settings:${storeId}`);
 
         return updatedSettings;
     }
