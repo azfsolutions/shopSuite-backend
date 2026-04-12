@@ -113,6 +113,18 @@ export class UpdateSettingsDto {
     enableTopRated?: boolean;
 
     // ============================================================
+    // STOREFRONT STYLE
+    // ============================================================
+
+    @ApiPropertyOptional({
+        description: 'Estilo visual del storefront (style1 o style2)',
+        example: 'style1',
+    })
+    @IsString()
+    @IsOptional()
+    storefrontStyle?: string;
+
+    // ============================================================
     // CUSTOM COLORS
     // ============================================================
 

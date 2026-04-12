@@ -323,6 +323,9 @@ model StoreSettings {
   // Shipping
   freeShippingThreshold Decimal? @db.Decimal(10, 2)
 
+  // Storefront Style
+  storefrontStyle String @default("style1")
+
   // Custom Colors (theming)
   primaryColorCustom String? // Si NULL, usa primaryColor de Store
   accentColorCustom  String?

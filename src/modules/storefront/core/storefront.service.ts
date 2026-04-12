@@ -294,6 +294,7 @@ export class StorefrontService {
                 requireLoginForCheckout: true,
                 primaryColorCustom: true,
                 accentColorCustom: true,
+                storefrontStyle: true,
             },
         });
 
@@ -313,6 +314,7 @@ export class StorefrontService {
                 requireLoginForCheckout: true,
                 primaryColorCustom: null,
                 accentColorCustom: null,
+                storefrontStyle: 'style1',
             };
             await this.setCache(cacheKey, defaults, 86400);
             return defaults;
