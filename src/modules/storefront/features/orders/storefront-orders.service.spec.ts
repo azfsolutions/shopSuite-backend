@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { StorefrontOrdersService } from './storefront-orders.service';
 import { PrismaService } from '../../../../database/prisma.service';
+import { CustomerTiersService } from '../../../customer-tiers/customer-tiers.service';
 import { Decimal } from '@prisma/client/runtime/library';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -123,6 +124,7 @@ function buildMockPrisma(overrides: Record<string, any> = {}) {
             create: jest.fn().mockResolvedValue(makeOrder()),
         },
         productVariant: { update: jest.fn().mockResolvedValue({}) },
+        stockReservation: { groupBy: jest.fn().mockResolvedValue([]) },
         ...overrides,
     };
 
@@ -146,6 +148,7 @@ describe('StorefrontOrdersService', () => {
             providers: [
                 StorefrontOrdersService,
                 { provide: PrismaService, useValue: mockPrisma },
+                { provide: CustomerTiersService, useValue: { evaluateAndPromote: jest.fn().mockResolvedValue(undefined) } },
             ],
         }).compile();
         service = module.get<StorefrontOrdersService>(StorefrontOrdersService);

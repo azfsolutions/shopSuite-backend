@@ -7,12 +7,16 @@ import {
 import { PrismaService } from '../../../../database/prisma.service';
 import { CreateStorefrontOrderDto } from './dto/create-storefront-order.dto';
 import { Decimal } from '@prisma/client/runtime/library';
+import { CustomerTiersService } from '../../../customer-tiers/customer-tiers.service';
 
 @Injectable()
 export class StorefrontOrdersService {
     private readonly logger = new Logger(StorefrontOrdersService.name);
 
-    constructor(private readonly prisma: PrismaService) {}
+    constructor(
+        private readonly prisma: PrismaService,
+        private readonly customerTiers: CustomerTiersService,
+    ) {}
 
     async createOrder(
         storeId: string,
@@ -65,6 +69,20 @@ export class StorefrontOrdersService {
 
                 const productMap = new Map(products.map((p) => [p.id, p]));
 
+                const vipReservations = await tx.stockReservation.groupBy({
+                    by: ['productId'],
+                    where: {
+                        productId: { in: productIds },
+                        storeId,
+                        releasedAt: null,
+                        expiresAt: { gt: new Date() },
+                    },
+                    _sum: { quantity: true },
+                });
+                const reservedMap = new Map(
+                    vipReservations.map((r) => [r.productId, r._sum.quantity ?? 0]),
+                );
+
                 for (const item of dto.items) {
                     const product = productMap.get(item.productId)!;
 
@@ -83,10 +101,14 @@ export class StorefrontOrdersService {
                             );
                         }
                     } else {
-                        if (product.trackInventory && product.stock < item.quantity) {
-                            throw new BadRequestException(
-                                `Stock insuficiente para "${product.name}"`,
-                            );
+                        if (product.trackInventory) {
+                            const reserved = reservedMap.get(item.productId) ?? 0;
+                            const available = product.stock - reserved;
+                            if (available < item.quantity) {
+                                throw new BadRequestException(
+                                    `Stock insuficiente para "${product.name}"`,
+                                );
+                            }
                         }
                     }
                 }
@@ -334,6 +356,7 @@ export class StorefrontOrdersService {
                     status: order.status,
                     total: Number(order.total),
                     createdAt: order.createdAt,
+                    customerId: customer.id,
                 };
             });
 
@@ -345,7 +368,19 @@ export class StorefrontOrdersService {
                 total: result.total,
             });
 
-            return result;
+            this.customerTiers
+                .evaluateAndPromote(storeId, result.customerId)
+                .catch((err) =>
+                    this.logger.error({
+                        event: 'TIER_EVAL_FAILED',
+                        storeId,
+                        customerId: result.customerId,
+                        error: err instanceof Error ? err.message : 'Unknown',
+                    }),
+                );
+
+            const { customerId: _omit, ...response } = result;
+            return response;
         } catch (error) {
             if (
                 error instanceof NotFoundException ||

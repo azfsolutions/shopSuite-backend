@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './database/prisma.module';
 import { CoreModule } from './core/core.module';
 import { RedisModule } from './modules/redis/redis.module';
@@ -24,6 +25,14 @@ import { SubscriptionsModule } from './modules/subscriptions/subscriptions.modul
 import { AuditModule } from './modules/audit/audit.module';
 import { BuyerAuthModule } from './modules/buyer-auth/buyer-auth.module';
 import { BuyerNotificationsModule } from './modules/buyer-notifications/buyer-notifications.module';
+import { WholesaleSettingsModule } from './modules/wholesale-settings/wholesale-settings.module';
+import { CustomerTiersModule } from './modules/customer-tiers/customer-tiers.module';
+import { WholesaleRequestsModule } from './modules/wholesale-requests/wholesale-requests.module';
+import { WholesaleChatModule } from './modules/wholesale-chat/wholesale-chat.module';
+import { B2BCatalogModule } from './modules/b2b-catalog/b2b-catalog.module';
+import { StockReservationsModule } from './modules/stock-reservations/stock-reservations.module';
+import { B2BQuotesModule } from './modules/b2b-quotes/b2b-quotes.module';
+import { BackordersModule } from './modules/backorders/backorders.module';
 
 @Module({
     imports: [
@@ -38,6 +47,9 @@ import { BuyerNotificationsModule } from './modules/buyer-notifications/buyer-no
             ttl: 60000,
             limit: 100,
         }]),
+
+        // Scheduled jobs (cron)
+        ScheduleModule.forRoot(),
 
         // Database
         PrismaModule,
@@ -75,6 +87,16 @@ import { BuyerNotificationsModule } from './modules/buyer-notifications/buyer-no
         ReviewsModule,
         SubscriptionsModule,
         AuditModule,
+
+        // Wholesale B2B
+        WholesaleSettingsModule,
+        CustomerTiersModule,
+        WholesaleRequestsModule,
+        WholesaleChatModule,
+        B2BCatalogModule,
+        StockReservationsModule,
+        B2BQuotesModule,
+        BackordersModule,
     ],
 })
 export class AppModule { }

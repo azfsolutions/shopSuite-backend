@@ -24,9 +24,10 @@ import { StorefrontOrdersService } from './features/orders/storefront-orders.ser
 
 import { CouponsModule } from '../coupons/coupons.module';
 import { ShippingModule } from '../shipping/shipping.module';
+import { CustomerTiersModule } from '../customer-tiers/customer-tiers.module';
 
 @Module({
-    imports: [CouponsModule, ShippingModule],
+    imports: [CouponsModule, ShippingModule, CustomerTiersModule],
     controllers: [
         DomainResolverController,
         StorefrontController,

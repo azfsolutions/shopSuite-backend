@@ -164,11 +164,12 @@ model BuyerUser {
   deletedAt   DateTime?
 
   // Relations
-  sessions       BuyerSession[]
-  storeProfiles  StoreCustomerProfile[]
-  customers      Customer[]
-  subscriptions  NewsletterSubscriber[]
-  notifications  BuyerNotification[]
+  sessions          BuyerSession[]
+  storeProfiles     StoreCustomerProfile[]
+  customers         Customer[]
+  subscriptions     NewsletterSubscriber[]
+  notifications     BuyerNotification[]
+  wholesaleRequests WholesaleRequest[]
 
   @@index([email])
   @@map("buyer_users")
@@ -262,6 +263,15 @@ model Store {
   // Featured Products System (NEW)
   featuredConfig   FeaturedProductConfig?
   featuredProducts FeaturedProduct[]
+
+  // Wholesale B2B
+  wholesaleSettings WholesaleSettings?
+  wholesaleRequests WholesaleRequest[]
+  b2bCatalogs       B2BCatalog[]
+  b2bQuotes         B2BQuote[]
+  b2bOrders         B2BOrder[]
+  stockReservations StockReservation[]
+  backorders        Backorder[]
 
   @@index([slug])
   @@index([ownerId])
@@ -560,6 +570,11 @@ model Product {
   stock             Int     @default(0)
   lowStockThreshold Int     @default(10)
 
+  wholesalePrice    Decimal? @db.Decimal(10, 2)
+  retailReserveQty  Int      @default(0)
+  allowBackorder    Boolean  @default(false)
+  backorderLeadDays Int?
+
   status     ProductStatus @default(DRAFT)
   isFeatured Boolean       @default(false)
   isExclusive Boolean      @default(false)
@@ -592,6 +607,11 @@ model Product {
   flashSaleItems  FlashSaleItem[]
   testimonials    Testimonial[]
   featuredProducts FeaturedProduct[]
+
+  b2bCatalogItems   B2BCatalogItem[]
+  b2bQuoteItems     B2BQuoteItem[]
+  stockReservations StockReservation[]
+  backorders        Backorder[]
 
   @@unique([storeId, slug])
   @@unique([storeId, sku])
@@ -706,6 +726,10 @@ model Customer {
   notes String?
   tags  String[] @default([])
 
+  customerType    CustomerType @default(RETAIL)
+  b2bApprovedAt   DateTime?
+  b2bApprovedById String?
+
   lastOrderAt DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
@@ -718,10 +742,24 @@ model Customer {
   wishlist  Wishlist?
   reviews   Review[]
 
+  wholesaleRequests WholesaleRequest[]
+  b2bCatalog        B2BCatalog?
+  b2bQuotes         B2BQuote[]
+  b2bOrders         B2BOrder[]
+  stockReservations StockReservation[]
+  backorders        Backorder[]
+
   @@unique([storeId, email])
   @@index([storeId])
   @@index([buyerUserId])
+  @@index([storeId, customerType])
   @@map("customers")
+}
+
+enum CustomerType {
+  RETAIL
+  WHOLESALE
+  B2B_VIP
 }
 
 model CustomerAddress {
@@ -869,6 +907,9 @@ enum OrderStatus {
 
 enum PaymentStatus {
   PENDING
+  DEPOSIT_AWAITING
+  DEPOSIT_RECEIVED
+  PARTIAL_PAID
   PAID
   FAILED
   REFUNDED
@@ -1511,4 +1552,298 @@ model FeaturedProduct {
   @@unique([storeId, productId])
   @@index([storeId, position])
   @@map("featured_products")
+}
+
+// ============================================================
+// SECTION 17: WHOLESALE B2B
+// ============================================================
+
+model WholesaleSettings {
+  id              String                 @id @default(uuid())
+  storeId         String                 @unique
+  enabled         Boolean                @default(true)
+  thresholdUnit   WholesaleThresholdUnit @default(TOTAL_UNITS)
+  thresholdValue  Int                    @default(3)
+  reservationDays Int                    @default(7)
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@map("wholesale_settings")
+}
+
+enum WholesaleThresholdUnit {
+  TOTAL_UNITS
+  UNITS_PER_ORDER
+  ORDER_COUNT
+}
+
+model WholesaleRequest {
+  id              String                 @id @default(uuid())
+  storeId         String
+  buyerUserId     String
+  customerId      String?
+  status          WholesaleRequestStatus @default(PENDING)
+  initialMessage  String?                @db.Text
+  approvedAt      DateTime?
+  approvedById    String?
+  rejectedAt      DateTime?
+  rejectionReason String?                @db.Text
+  assignedToId    String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  store     Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  buyerUser BuyerUser      @relation(fields: [buyerUserId], references: [id], onDelete: Cascade)
+  customer  Customer?      @relation(fields: [customerId], references: [id])
+  chat      WholesaleChat?
+
+  @@index([storeId, status])
+  @@index([buyerUserId])
+  @@index([assignedToId])
+  @@map("wholesale_requests")
+}
+
+enum WholesaleRequestStatus {
+  PENDING
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+model WholesaleChat {
+  id                 String    @id @default(uuid())
+  wholesaleRequestId String    @unique
+  unreadByMerchant   Int       @default(0)
+  unreadByBuyer      Int       @default(0)
+  lastMessageAt      DateTime?
+  closedAt           DateTime?
+  createdAt          DateTime  @default(now())
+
+  wholesaleRequest WholesaleRequest       @relation(fields: [wholesaleRequestId], references: [id], onDelete: Cascade)
+  messages         WholesaleChatMessage[]
+
+  @@index([lastMessageAt])
+  @@map("wholesale_chats")
+}
+
+model WholesaleChatMessage {
+  id            String              @id @default(uuid())
+  chatId        String
+  senderType    WholesaleSenderType
+  senderUserId  String?
+  senderBuyerId String?
+  body          String              @db.Text
+  metadata      Json?
+  createdAt     DateTime            @default(now())
+
+  chat WholesaleChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("wholesale_chat_messages")
+}
+
+enum WholesaleSenderType {
+  MERCHANT
+  BUYER
+  SYSTEM
+}
+
+model B2BCatalog {
+  id               String   @id @default(uuid())
+  storeId          String
+  customerId       String   @unique
+  minOrderAmount   Decimal? @db.Decimal(10, 2)
+  minOrderQuantity Int?
+  notes            String?  @db.Text
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  store    Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  items    B2BCatalogItem[]
+  quotes   B2BQuote[]
+
+  @@index([storeId])
+  @@map("b2b_catalogs")
+}
+
+model B2BCatalogItem {
+  id        String   @id @default(uuid())
+  catalogId String
+  productId String
+  price     Decimal  @db.Decimal(10, 2)
+  notes     String?
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  catalog B2BCatalog @relation(fields: [catalogId], references: [id], onDelete: Cascade)
+  product Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([catalogId, productId])
+  @@index([catalogId, enabled])
+  @@map("b2b_catalog_items")
+}
+
+model B2BQuote {
+  id            String         @id @default(uuid())
+  storeId       String
+  catalogId     String
+  customerId    String
+  number        String
+  status        B2BQuoteStatus @default(DRAFT)
+  subtotal      Decimal        @db.Decimal(10, 2)
+  total         Decimal        @db.Decimal(10, 2)
+  validUntil    DateTime
+  paymentTerms  String?
+  deliveryTerms String?
+  notes         String?        @db.Text
+  pdfUrl        String?
+  sentAt        DateTime?
+  viewedAt      DateTime?
+  acceptedAt    DateTime?
+  rejectedAt    DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  catalog  B2BCatalog     @relation(fields: [catalogId], references: [id])
+  customer Customer       @relation(fields: [customerId], references: [id])
+  items    B2BQuoteItem[]
+  order    B2BOrder?
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
+  @@index([customerId])
+  @@map("b2b_quotes")
+}
+
+enum B2BQuoteStatus {
+  DRAFT
+  SENT
+  VIEWED
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model B2BQuoteItem {
+  id        String  @id @default(uuid())
+  quoteId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  subtotal  Decimal @db.Decimal(10, 2)
+
+  quote   B2BQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product  @relation(fields: [productId], references: [id])
+
+  @@index([quoteId])
+  @@map("b2b_quote_items")
+}
+
+model B2BOrder {
+  id              String           @id @default(uuid())
+  storeId         String
+  customerId      String
+  quoteId         String           @unique
+  number          String
+  status          B2BOrderStatus   @default(AWAITING_CLIENT)
+  paymentStatus   PaymentStatus    @default(PENDING)
+  paymentMethod   B2BPaymentMethod @default(TBD)
+  subtotal        Decimal          @db.Decimal(10, 2)
+  total           Decimal          @db.Decimal(10, 2)
+  depositAmount   Decimal?         @db.Decimal(10, 2)
+  depositPaidAt   DateTime?
+  remainingAmount Decimal?         @db.Decimal(10, 2)
+  paidAt          DateTime?
+  acceptedAt      DateTime?
+  fulfilledAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  quote      B2BQuote    @relation(fields: [quoteId], references: [id])
+  backorders Backorder[]
+
+  @@unique([storeId, number])
+  @@index([storeId, status])
+  @@index([customerId])
+  @@map("b2b_orders")
+}
+
+enum B2BOrderStatus {
+  AWAITING_CLIENT
+  ACCEPTED
+  PARTIAL_SHIPPED
+  FULFILLED
+  CANCELLED
+}
+
+enum B2BPaymentMethod {
+  TBD
+  TRANSFER
+  CASH
+}
+
+model StockReservation {
+  id         String                 @id @default(uuid())
+  storeId    String
+  productId  String
+  customerId String
+  quantity   Int
+  reason     StockReservationReason
+  sourceId   String?
+  expiresAt  DateTime
+  releasedAt DateTime?
+  createdAt  DateTime               @default(now())
+
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([productId, releasedAt, expiresAt])
+  @@index([customerId])
+  @@index([storeId])
+  @@map("stock_reservations")
+}
+
+enum StockReservationReason {
+  VIP_QUOTE
+  MANUAL_HOLD
+}
+
+model Backorder {
+  id            String          @id @default(uuid())
+  storeId       String
+  orderId       String
+  productId     String
+  customerId    String
+  quantity      Int
+  fulfilledQty  Int             @default(0)
+  estimatedDate DateTime?
+  status        BackorderStatus @default(PENDING)
+  fulfilledAt   DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  store    Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  order    B2BOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+
+  @@index([storeId, status])
+  @@index([productId, status])
+  @@map("backorders")
+}
+
+enum BackorderStatus {
+  PENDING
+  PARTIAL_FULFILLED
+  FULFILLED
+  CANCELLED
 }
