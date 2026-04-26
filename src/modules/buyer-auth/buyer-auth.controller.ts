@@ -11,6 +11,7 @@ import {
     Ip,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { BuyerAuthService } from './buyer-auth.service';
 import { BuyerSignUpDto } from './dto/sign-up.dto';
@@ -42,6 +43,7 @@ export class BuyerAuthController {
     constructor(private readonly buyerAuthService: BuyerAuthService) {}
 
     @Post('sign-up')
+    @Throttle({ default: { ttl: 60000, limit: 3 } })
     @ApiOperation({ summary: 'Registro de comprador' })
     async signUp(
         @Body() dto: BuyerSignUpDto,
@@ -56,6 +58,7 @@ export class BuyerAuthController {
 
     @Post('sign-in')
     @HttpCode(HttpStatus.OK)
+    @Throttle({ default: { ttl: 60000, limit: 5 } })
     @ApiOperation({ summary: 'Login de comprador' })
     async signIn(
         @Body() dto: BuyerSignInDto,

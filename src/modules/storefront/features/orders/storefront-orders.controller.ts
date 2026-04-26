@@ -8,6 +8,7 @@ import {
     HttpCode,
     HttpStatus,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { StorefrontOrdersService } from './storefront-orders.service';
 import { CreateStorefrontOrderDto } from './dto/create-storefront-order.dto';
@@ -24,6 +25,7 @@ export class StorefrontOrdersController {
 
     @Post()
     @HttpCode(HttpStatus.CREATED)
+    @Throttle({ default: { ttl: 60000, limit: 10 } })
     async createOrder(
         @Param('storeSlug') storeSlug: string,
         @Body() dto: CreateStorefrontOrderDto,

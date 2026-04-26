@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
+import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './database/prisma.module';
 import { CoreModule } from './core/core.module';
 import { RedisModule } from './modules/redis/redis.module';
@@ -42,11 +43,12 @@ import { BackordersModule } from './modules/backorders/backorders.module';
             envFilePath: '.env',
         }),
 
-        // Rate Limiting
-        ThrottlerModule.forRoot([{
-            ttl: 60000,
-            limit: 100,
-        }]),
+        // Rate Limiting - 3 tiers (short anti-burst, medium, long)
+        ThrottlerModule.forRoot([
+            { name: 'short', ttl: 1000, limit: 3 },
+            { name: 'medium', ttl: 10000, limit: 20 },
+            { name: 'long', ttl: 60000, limit: 100 },
+        ]),
 
         // Scheduled jobs (cron)
         ScheduleModule.forRoot(),
@@ -97,6 +99,10 @@ import { BackordersModule } from './modules/backorders/backorders.module';
         StockReservationsModule,
         B2BQuotesModule,
         BackordersModule,
+    ],
+    providers: [
+        // Rate limit applied globally to ALL routes (overridable per-handler with @Throttle)
+        { provide: APP_GUARD, useClass: ThrottlerGuard },
     ],
 })
 export class AppModule { }
