@@ -11,6 +11,7 @@ import {
     Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { ReviewsService } from './reviews.service';
 import { CreateReviewDto, ReplyReviewDto } from './dto';
 import { AuthGuard, GlobalRoleGuard, StoreAccessGuard } from '../../core/guards';
@@ -37,6 +38,7 @@ export class ReviewsStorefrontController {
     @Post()
     @ApiBearerAuth()
     @UseGuards(AuthGuard)
+    @Throttle({ default: { ttl: 3600000, limit: 3 } }) // 3 reviews per hour per IP (S-D-2)
     @ApiOperation({ summary: 'Crear una review (requiere auth)' })
     @ApiResponse({ status: 201, description: 'Review creada (pendiente moderación)' })
     createReview(

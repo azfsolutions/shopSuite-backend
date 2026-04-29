@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Post, Req, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiCookieAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { B2BQuotesService } from './b2b-quotes.service';
 import { BuyerAuthGuard } from '../buyer-auth/guards/buyer-auth.guard';
 import { WholesaleRequestsService } from '../wholesale-requests/wholesale-requests.service';
@@ -55,6 +56,7 @@ export class B2BQuotesBuyerController {
     }
 
     @Get(':quoteId/pdf')
+    @Throttle({ default: { ttl: 60000, limit: 5 } }) // 5 PDFs per min — RAM intensive (S-D-3)
     async pdf(
         @Param('slug') slug: string,
         @Param('quoteId') quoteId: string,

@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { B2BQuotesService } from './b2b-quotes.service';
 import { CreateQuoteDto } from './dto/create-quote.dto';
 import { AuthGuard, GlobalRoleGuard, RolesGuard, StoreAccessGuard } from '../../core/guards';
@@ -53,6 +54,7 @@ export class B2BQuotesAdminController {
 
     @Get(':quoteId/pdf')
     @Roles(StoreRole.SUPPORT, StoreRole.EDITOR, StoreRole.MANAGER, StoreRole.ADMIN)
+    @Throttle({ default: { ttl: 60000, limit: 10 } }) // 10 PDFs per min — RAM intensive (S-D-3)
     async pdf(
         @Param('storeId') storeId: string,
         @Param('quoteId') quoteId: string,

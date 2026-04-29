@@ -7,6 +7,8 @@ import {
     Min,
     ValidateNested,
     MaxLength,
+    ArrayMinSize,
+    ArrayMaxSize,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -88,6 +90,8 @@ export class CreateStorefrontOrderDto {
     shippingMethodId: string;
 
     @IsArray()
+    @ArrayMinSize(1)
+    @ArrayMaxSize(100)
     @ValidateNested({ each: true })
     @Type(() => OrderItemDto)
     items: OrderItemDto[];

@@ -29,6 +29,9 @@ async function bootstrap() {
     // Required for correct IP detection behind load balancers
     app.getHttpAdapter().getInstance().set('trust proxy', 1);
 
+    // Hide X-Powered-By header (don't advertise the stack to attackers)
+    app.getHttpAdapter().getInstance().disable('x-powered-by');
+
     // Cookie parser — required for httpOnly cookie auth (buyer_token)
     app.use(cookieParser());
 
