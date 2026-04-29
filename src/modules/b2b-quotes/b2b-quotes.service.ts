@@ -42,7 +42,6 @@ export class B2BQuotesService {
         if (products.length !== productIds.length) {
             throw new BadRequestException('Uno o más productos no pertenecen a la tienda');
         }
-        const productMap = new Map(products.map((p) => [p.id, p]));
 
         const itemsData = dto.items.map((i) => {
             const subtotal = new Decimal(i.unitPrice).mul(i.quantity);
