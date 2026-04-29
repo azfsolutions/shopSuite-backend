@@ -160,9 +160,10 @@ describe('ProductsService', () => {
     // ─── IMAGES ──────────────────────────────────────────────
     describe('addImage', () => {
         it('should add image to product', async () => {
+            prisma.product.findFirst.mockResolvedValue(createMockProduct());
             prisma.productImage.create.mockResolvedValue({ id: 'img-1', url: 'http://img.jpg', position: 0 });
 
-            await service.addImage('prod-1', 'http://img.jpg');
+            await service.addImage('store-1', 'prod-1', 'http://img.jpg');
 
             expect(prisma.productImage.create).toHaveBeenCalledWith({
                 data: { productId: 'prod-1', url: 'http://img.jpg', position: 0 },
@@ -172,9 +173,11 @@ describe('ProductsService', () => {
 
     describe('deleteImage', () => {
         it('should delete image by id', async () => {
+            prisma.product.findFirst.mockResolvedValue(createMockProduct());
+            prisma.productImage.findFirst.mockResolvedValue({ id: 'img-1', productId: 'prod-1' });
             prisma.productImage.delete.mockResolvedValue({});
 
-            await service.deleteImage('img-1');
+            await service.deleteImage('store-1', 'prod-1', 'img-1');
 
             expect(prisma.productImage.delete).toHaveBeenCalledWith({ where: { id: 'img-1' } });
         });
