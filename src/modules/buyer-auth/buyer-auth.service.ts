@@ -2,6 +2,7 @@ import {
     Injectable,
     UnauthorizedException,
     ConflictException,
+    ForbiddenException,
     Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
@@ -12,8 +13,16 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 
 const SESSION_TTL_SEC = 5 * 60;                    // Redis cache TTL: 5 min
-const SESSION_DB_DAYS = 30;                         // DB session lifespan: 30 days
+const SESSION_DB_DAYS = 7;                          // DB session lifespan: 7 days (B-S-3)
+const SESSION_SLIDE_THRESHOLD_MS = 24 * 60 * 60 * 1000;  // Extend if < 1 day left
 const SESSION_KEY = (token: string) => `buyer_session:${token}`;
+
+// Account lockout (SEC-AUTH-002) — defense in depth on top of @Throttle.
+// Throttler limits per-IP, this limits per-email so distributed brute force
+// (multiple IPs targeting one account) is also blocked.
+const LOCKOUT_MAX_FAILS = 10;                       // Block after 10 failed attempts
+const LOCKOUT_WINDOW_SEC = 15 * 60;                 // Within a 15-min sliding window
+const LOCKOUT_KEY = (email: string) => `buyer:signin:fail:${email}`;
 
 const USER_SELECT = {
     id: true,
@@ -72,22 +81,43 @@ export class BuyerAuthService {
     async signIn(dto: BuyerSignInDto, ip?: string, userAgent?: string) {
         const emailLower = dto.email.toLowerCase();
 
+        // Account lockout check (SEC-AUTH-002). Soft-fail if Redis is down so
+        // we never lock out users due to infra issues.
+        const lockoutKey = LOCKOUT_KEY(emailLower);
+        try {
+            const failsRaw = await this.redis.get(lockoutKey);
+            const fails = failsRaw ? parseInt(failsRaw, 10) : 0;
+            if (fails >= LOCKOUT_MAX_FAILS) {
+                throw new ForbiddenException(
+                    'Cuenta bloqueada temporalmente por demasiados intentos fallidos. Intenta de nuevo en 15 minutos.',
+                );
+            }
+        } catch (err) {
+            if (err instanceof ForbiddenException) throw err;
+            // Redis unavailable — fall through, throttler still protects per-IP
+        }
+
         const buyerUser = await this.prisma.buyerUser.findUnique({
             where: { email: emailLower },
         });
 
         if (!buyerUser?.password) {
+            await this.recordSignInFailure(lockoutKey);
             throw new UnauthorizedException('Credenciales incorrectas');
         }
 
         const passwordValid = await bcrypt.compare(dto.password, buyerUser.password);
         if (!passwordValid) {
+            await this.recordSignInFailure(lockoutKey);
             throw new UnauthorizedException('Credenciales incorrectas');
         }
 
         if (buyerUser.deletedAt) {
             throw new UnauthorizedException('Cuenta desactivada');
         }
+
+        // Successful sign-in — clear the failure counter
+        this.redis.del(lockoutKey).catch(() => {});
 
         await this.prisma.buyerUser.update({
             where: { id: buyerUser.id },
@@ -146,7 +176,18 @@ export class BuyerAuthService {
             return null;
         }
 
-        // 3. Repopulate cache (omit deletedAt from cached payload)
+        // 3. Sliding refresh: if session expires in < 1 day, extend it (B-S-3).
+        // Active users keep their session alive without forcing re-login,
+        // while inactive sessions still expire after 7 days.
+        const msLeft = session.expiresAt.getTime() - Date.now();
+        if (msLeft < SESSION_SLIDE_THRESHOLD_MS) {
+            const newExpiresAt = new Date(Date.now() + SESSION_DB_DAYS * 24 * 60 * 60 * 1000);
+            this.prisma.buyerSession
+                .update({ where: { token }, data: { expiresAt: newExpiresAt } })
+                .catch(() => {});
+        }
+
+        // 4. Repopulate cache (omit deletedAt from cached payload)
         const { deletedAt: _deleted, ...safeUser } = session.buyerUser;
         try {
             await this.redis.set(SESSION_KEY(token), JSON.stringify(safeUser), SESSION_TTL_SEC);
@@ -162,6 +203,21 @@ export class BuyerAuthService {
     }
 
     // ── PRIVATE ───────────────────────────────────────────────────────────────
+
+    /**
+     * Increment failure counter for an email and set TTL on first failure.
+     * Soft-fails if Redis is unavailable so sign-in still works.
+     */
+    private async recordSignInFailure(lockoutKey: string): Promise<void> {
+        try {
+            const fails = await this.redis.incr(lockoutKey);
+            if (fails === 1) {
+                await this.redis.expire(lockoutKey, LOCKOUT_WINDOW_SEC);
+            }
+        } catch {
+            // Redis unavailable — throttler still protects per-IP
+        }
+    }
 
     private async createSession(
         buyerUserId: string,

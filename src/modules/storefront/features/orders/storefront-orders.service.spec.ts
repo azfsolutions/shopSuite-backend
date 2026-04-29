@@ -110,6 +110,7 @@ function buildMockPrisma(overrides: Record<string, any> = {}) {
         coupon: {
             findFirst: jest.fn().mockResolvedValue(null),
             update: jest.fn().mockResolvedValue({}),
+            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
         },
         customer: {
             upsert: jest.fn().mockResolvedValue(makeCustomer()),
@@ -332,6 +333,7 @@ describe('StorefrontOrdersService', () => {
                     }),
                 ),
                 update: jest.fn(),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             order: {
                 count: jest.fn().mockResolvedValue(0),
@@ -357,6 +359,7 @@ describe('StorefrontOrdersService', () => {
             coupon: {
                 findFirst: jest.fn().mockResolvedValue(makeCoupon({ type: 'FIXED_AMOUNT', value: new Decimal('4.00') })),
                 update: jest.fn(),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             order: {
                 count: jest.fn().mockResolvedValue(0),
@@ -379,6 +382,7 @@ describe('StorefrontOrdersService', () => {
             coupon: {
                 findFirst: jest.fn().mockResolvedValue(makeCoupon({ type: 'FREE_SHIPPING', value: new Decimal('0') })),
                 update: jest.fn(),
+                updateMany: jest.fn().mockResolvedValue({ count: 1 }),
             },
             order: {
                 count: jest.fn().mockResolvedValue(0),

@@ -82,7 +82,9 @@ export class ReviewsService {
             throw new BadRequestException('Ya has dejado una reseña para este producto');
         }
 
-        // Verificar si el customer compró el producto (para isVerified)
+        // Verificar que el customer compró el producto (S-T-2 threat model).
+        // Sin esta validación cualquier buyer autenticado puede dejar reviews
+        // falsas en productos que nunca compró, dañando la reputación del catálogo.
         const hasPurchased = await this.prisma.orderItem.findFirst({
             where: {
                 productId,
@@ -93,6 +95,12 @@ export class ReviewsService {
             },
         });
 
+        if (!hasPurchased) {
+            throw new BadRequestException(
+                'Solo puedes reseñar productos que hayas comprado',
+            );
+        }
+
         // Crear la review
         const review = await this.prisma.review.create({
             data: {
@@ -102,7 +110,7 @@ export class ReviewsService {
                 title: dto.title,
                 comment: dto.comment,
                 status: ReviewStatus.PENDING,
-                isVerified: !!hasPurchased,
+                isVerified: true,
             },
         });
 

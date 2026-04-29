@@ -342,12 +342,24 @@ export class StorefrontOrdersService {
                     });
                 }
 
-                // ── Step 14: Increment coupon usageCount ─────────────────────
+                // ── Step 14: Atomically increment coupon usageCount ──────────
+                // Use updateMany with a conditional WHERE so concurrent requests
+                // cannot both pass the limit check and end up incrementing
+                // beyond usageLimit (race condition C-T-4).
                 if (coupon) {
-                    await tx.coupon.update({
-                        where: { id: coupon.id },
+                    const result = await tx.coupon.updateMany({
+                        where: {
+                            id: coupon.id,
+                            OR: [
+                                { usageLimit: null },
+                                { usageCount: { lt: coupon.usageLimit ?? 0 } },
+                            ],
+                        },
                         data: { usageCount: { increment: 1 } },
                     });
+                    if (result.count === 0) {
+                        throw new BadRequestException('El cupón ha alcanzado su límite de uso');
+                    }
                 }
 
                 return {

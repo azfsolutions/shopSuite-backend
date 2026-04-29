@@ -18,7 +18,7 @@ import { BuyerSignUpDto } from './dto/sign-up.dto';
 import { BuyerSignInDto } from './dto/sign-in.dto';
 
 const COOKIE_NAME = 'buyer_token';
-const COOKIE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+const COOKIE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days (B-S-3 — must match SESSION_DB_DAYS)
 
 function setBuyerCookie(res: Response, token: string): void {
     const isProd = process.env.NODE_ENV === 'production';
